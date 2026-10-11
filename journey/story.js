@@ -239,7 +239,7 @@ function drawBase() {
   c.strokeStyle = litA(.45); c.lineWidth = 60 / k; c.lineCap = c.lineJoin = "round"; c.stroke(trail);
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
   const softDot = (x, y, r, a) => {
-    if (x < -r || y < -r || x > W + r || y > H + r) return;
+    if (!isFinite(x + y + r) || x < -r || y < -r || x > W + r || y > H + r) return;
     const g = c.createRadialGradient(x, y, 0, x, y, r);
     g.addColorStop(0, litA(a)); g.addColorStop(.55, litA(a * .35)); g.addColorStop(1, litA(0));
     c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
