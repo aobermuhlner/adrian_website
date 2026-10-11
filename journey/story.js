@@ -19,6 +19,28 @@ RD.legs.forEach((leg, li) => {
 const KM = [0];
 for (let i = 1; i < LINE.length; i++) KM.push(KM[i - 1] + d3.geoDistance(LINE[i - 1], LINE[i]) * 6371);
 
+// Countries along the route: ISO3 for the map outline, ISO2 for the flag in the HUD
+const COUNTRY = {
+  "South Korea": ["KOR", "kr"], "China": ["CHN", "cn"], "Kyrgyzstan": ["KGZ", "kg"], "Uzbekistan": ["UZB", "uz"],
+  "Kazakhstan": ["KAZ", "kz"], "Russia": ["RUS", "ru"], "Georgia": ["GEO", "ge"], "Armenia": ["ARM", "am"],
+  "Turkey": ["TUR", "tr"], "Bulgaria": ["BGR", "bg"], "Serbia": ["SRB", "rs"], "Hungary": ["HUN", "hu"],
+  "Austria": ["AUT", "at"], "Switzerland": ["CHE", "ch"],
+};
+// Border-crossing stops are named "A → B"
+const countriesOf = name => name.split(" → ").filter(n => COUNTRY[n]);
+const FLAG_URL = code => `https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/flags/4x3/${code}.svg`;
+
+// Distance by means of transport, cumulative at every point of the line
+const MODES = [["train", "Train", "#ffc66b", "Train"], ["bus", "Bus", "#6ea8ff", "Bus"],
+  ["hitchhike", "Hitchhiking", "#3fc1a5", "Hitch"], ["ferry", "Ferry", "#c58cff", "Ferry"]];
+const MODE_KM = [Object.fromEntries(MODES.map(([m]) => [m, 0]))];
+for (let i = 1; i < LINE.length; i++) {
+  const row = { ...MODE_KM[i - 1] }, mode = RD.legs[SEG_LEG[i]].mode;
+  if (mode in row) row[mode] += KM[i] - KM[i - 1];
+  MODE_KM.push(row);
+}
+const MODE_MAX = d3.max(MODES, ([m]) => MODE_KM[MODE_KM.length - 1][m]);
+
 // Spending: each country's total and days are spread over that country's stops, so a running
 // "day / CHF spent" counter can follow the light along the route
 const BUDGET = RD.budget;
@@ -56,8 +78,24 @@ const ISO = { KOR:"410", PRK:"408", CHN:"156", MNG:"496", KGZ:"417", UZB:"860", 
   IRN:"364", AFG:"004", UKR:"804", ISR:"376", IND:"356", PAK:"586" };
 
 // Notebook "Geopolitics" map: closed borders vs. active conflict
-const GEO_STATUS = { PRK:"closed", TKM:"closed", AZE:"closed",
-  RUS:"conflict", UKR:"conflict", IRN:"conflict", ISR:"conflict", AFG:"conflict", IND:"conflict", PAK:"conflict" };
+const GEO_STATUS = { PRK:"closed", TKM:"closed", AZE:"closed", AFG:"taliban",
+  RUS:"conflict", UKR:"conflict", IRN:"conflict", ISR:"conflict", IND:"conflict", PAK:"conflict" };
+
+// Who is fighting whom: two arrows run from each side's interior and meet at the clash point.
+// Points are [lon, lat]; label offset is in screen pixels from the clash point.
+const WARS = [
+  { a: [44, 52.5], b: [30.5, 49.5], at: [37.8, 48.2], label: "Russia – Ukraine", off: [0, 18] },
+  { a: [35.0, 31.4], b: [53, 32.6], at: [44, 32.2],   label: "Israel – Iran",    off: [0, 20] },
+  { a: [78.5, 24.5], b: [68.5, 27.5], at: [74.6, 33.6], label: "India – Pakistan", off: [12, -10], align: "left" },
+];
+// Afghanistan is not at war with a neighbour but under Taliban rule: it gets its own marker
+const TALIBAN_AT = [65.5, 33.6];
+// Closed countries get a thick outline and a "not passable" sign instead of a fill
+const CLOSED_LABELS = [
+  { code: "PRK", at: [127.2, 40.2], name: "North Korea",  note: "border closed", left: true },
+  { code: "TKM", at: [59.0, 39.4],  name: "Turkmenistan", note: "not passable" },
+  { code: "AZE", at: [47.8, 40.4],  name: "Azerbaijan",   note: "land border closed", left: true },
+];
 
 // Visa table from PROJECT_STRUCTURE.md: 0 free, 1 arrival/e-visa, 2 required, 3 very difficult
 const VISA = {
@@ -76,18 +114,23 @@ const VISA = {
 };
 const VISA_VARS = ["--visa-free", "--visa-arrival", "--visa-req", "--visa-hard"];
 
-// Story steps: where the light is, where the camera looks, which overlay shows
+// Story steps: where the light is, where the camera looks, which overlay shows.
+// plans: how strongly the planned routes stay visible (faint behind the conflict and visa maps)
 const STEPS = {
   intro:    { at: "seoul",     cam: [80, 42, 1.0],   overlay: null,     future: 0, full: 1 },
   seoul:    { at: "seoul",     cam: [127, 37.5, 5],  overlay: null,     future: 0 },
   flight:   { at: "seoul",     cam: [68, 44, 1.0],   overlay: "flight", future: 0 },
-  routes:   { at: "seoul",     cam: [68, 46, 1.0],   overlay: "routes", future: 0 },
-  geo:      { at: "seoul",     cam: [72, 40, 1.15],  overlay: "geo",    future: 0 },
-  visa:     { at: "seoul",     cam: [60, 44, 1.5],   overlay: "visa",   future: 1 },
+  routes:   { at: "seoul",     cam: [68, 46, 1.0],   overlay: "routes", future: 0, plans: 1 },
+  geo:      { at: "seoul",     cam: [72, 40, 1.15],  overlay: "geo",    future: 0, plans: .5 },
+  visa:     { at: "seoul",     cam: [76, 43, 1.25],   overlay: "visa",   future: 1, plans: .5 },
   depart:   { at: "dandong",   cam: [123, 38.8, 5],  overlay: null,     future: 1 },
   china:    { at: "kashgar",   cam: [98, 38.5, 2.0], overlay: null,     future: 1 },
   border1:  { at: "osh",       cam: [74.2, 40, 7],   overlay: null,     future: 1, pulse: "irkeshtam" },
-  kyrgyz:   { at: "tashkomur", cam: [75, 41.9, 5],   overlay: null,     future: 1 },
+  kyrgyz:   { at: "bishkek",   cam: [75.2, 42.3, 5], overlay: null,     future: 1 },
+  karakol:  { at: "karakol",   cam: [78, 42.4, 7],   overlay: null,     future: 1, video: "karakol_horse" },
+  yurts:    { at: "karakol",   cam: [77.2, 42.2, 5.5], overlay: null,   future: 1, video: "yurt_camp" },
+  south:    { at: "bishkek2",  cam: [73.6, 42.2, 5], overlay: null,     future: 1, video: "truck_road" },
+  tashkomur:{ at: "tashkomur", cam: [72.5, 41.4, 8], overlay: null,     future: 1, video: "tashkomur_river" },
   uzbek:    { at: "tashkent2", cam: [65, 40.4, 4.5], overlay: null,     future: 1 },
   kazakh:   { at: "atyrau",    cam: [63, 44, 2.0],   overlay: null,     future: 1, pulse: "almaty" },
   russia:   { at: "lars",      cam: [47, 45.5, 3.6], overlay: null,     future: 1 },
@@ -112,7 +155,7 @@ const HOURS = [
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const COL = {};
 ["--night", "--land-dark", "--land-dark-edge", "--land-lit", "--land-lit-edge", "--glow",
- "--alt-blue", "--alt-violet", "--closed", "--conflict", ...VISA_VARS].forEach(v => COL[v] = css(v));
+ "--alt-blue", "--alt-violet", "--closed", "--conflict", "--taliban", ...VISA_VARS].forEach(v => COL[v] = css(v));
 
 const baseCv = document.getElementById("map"), fxCv = document.getElementById("fx");
 const bctx = baseCv.getContext("2d"), fctx = fxCv.getContext("2d");
@@ -120,6 +163,7 @@ const bctx = baseCv.getContext("2d"), fctx = fxCv.getContext("2d");
 let W, H, DPR, projection, worlds;   // worlds: { fine, coarse } topologies, Eurasia only
 let LOD = {}, landPath, edgePath, countryPath = {}, altPaths = [], flightPath, futurePath;
 let P = [], CUM = [], TOTAL = 0;
+let WAR_P = [], TALIBAN_P, CLOSED_P = [];  // the geopolitics markers in base projected coordinates
 let view = null;        // current camera + route state
 let dirty = true;
 let nationality = "swiss";
@@ -169,6 +213,9 @@ function setup() {
   // The faint dashed preview doesn't need full detail
   futurePath = lineToPath2D(P.filter((q, j) => j === 0 || j === P.length - 1 || j % 3 === 0));
   altPaths = ALT_ROUTES.map(r => ({ color: COL[r.color], path: lineToPath2D(r.pts.map(projection)) }));
+  WAR_P = WARS.map(w => ({ ...w, a: projection(w.a), b: projection(w.b), at: projection(w.at) }));
+  TALIBAN_P = projection(TALIBAN_AT);
+  CLOSED_P = CLOSED_LABELS.map(l => ({ ...l, at: projection(l.at) }));
   const arc = d3.geoInterpolate(STOP.seoul.c, STOP.zurich.c);
   flightPath = toPath2D({ type: "LineString", coordinates: d3.range(0, 1.001, .02).map(arc) });
 
@@ -257,12 +304,26 @@ function drawBase() {
 
   // 3. Country overlays (crossfade with scroll)
   toMap(c);
-  if (w.geo > 0) fillCountries(c, code => GEO_STATUS[code] === "closed" ? COL["--closed"] :
-    GEO_STATUS[code] === "conflict" ? COL["--conflict"] : null, .38 * w.geo);
+  if (w.geo > 0) fillCountries(c, code => GEO_STATUS[code] === "conflict" ? COL["--conflict"] :
+    GEO_STATUS[code] === "taliban" ? COL["--taliban"] : null, .38 * w.geo);
   if (w.visa > 0) fillCountries(c, code => {
-    if (GEO_STATUS[code] === "closed") return COL["--visa-hard"];
     const v = VISA[code]; return v ? COL[VISA_VARS[v[nationality]]] : null;
   }, .4 * w.visa);
+
+  // The country the traveler is in: a soft glowing outline (hidden while a thematic overlay is up)
+  const hl = 1 - Math.min(1, w.geo + w.visa + w.budget + w.routes + w.flight);
+  if (hl > 0 && view.here) {
+    for (const code of view.here) {
+      const path = countryPath[ISO[code]];
+      if (!path) continue;
+      c.save();
+      c.globalAlpha = .07 * hl; c.fillStyle = COL["--glow"]; c.fill(path);
+      c.globalAlpha = .9 * hl; c.strokeStyle = COL["--glow"]; c.lineJoin = "round";
+      c.shadowColor = COL["--glow"]; c.shadowBlur = 14 * DPR;
+      c.lineWidth = 1.4 / k; c.stroke(path);
+      c.restore();
+    }
+  }
 
   if (w.budget > 0) {
     // Brighter = more expensive per day; hatched = estimated daily rate
@@ -287,8 +348,8 @@ function drawBase() {
     c.globalAlpha = .18 * w.future; c.strokeStyle = COL["--glow"]; c.lineWidth = 1.2 / k;
     c.setLineDash([2 / k, 5 / k]); c.stroke(futurePath);
   }
-  if (w.routes > 0) {
-    c.globalAlpha = w.routes; c.lineWidth = 2 / k; c.setLineDash([6 / k, 5 / k]);
+  if (w.plans > 0) {
+    c.globalAlpha = w.plans; c.lineWidth = 2 / k; c.setLineDash([6 / k, 5 / k]);
     altPaths.forEach(a => { c.strokeStyle = a.color; c.stroke(a.path); });
     c.strokeStyle = COL["--glow"]; c.stroke(futurePath);
   }
@@ -297,6 +358,9 @@ function drawBase() {
     c.setLineDash([3 / k, 6 / k]); c.stroke(flightPath);
   }
   c.setLineDash([]); c.globalAlpha = 1;
+
+  if (w.geo > 0) drawGeoMarkers(c, w.geo, sx, sy);
+  if (w.visa > 0) drawClosed(c, w.visa, k, sx, sy);
 
   // 5. The glowing trail
   [[14, "rgba(255,138,61,.10)"], [6, "rgba(255,198,107,.28)"], [1.6, "rgba(255,243,214,.95)"]].forEach(([lw, col]) => {
@@ -308,6 +372,7 @@ function drawBase() {
   c.globalCompositeOperation = "lighter";
   passed.forEach(s => {
     const x = sx(P[AT[s.id]]), y = sy(P[AT[s.id]]);
+    if (!isFinite(x + y)) return;
     const g = c.createRadialGradient(x, y, 0, x, y, 18);
     g.addColorStop(0, "rgba(255,243,214,.6)"); g.addColorStop(.3, "rgba(255,198,107,.3)"); g.addColorStop(1, "rgba(255,138,61,0)");
     c.fillStyle = g; c.beginPath(); c.arc(x, y, 18, 0, 7); c.fill();
@@ -325,6 +390,94 @@ function drawBase() {
       c.strokeText(s.name, x, y); c.fillText(s.name, x, y);
     });
   }
+}
+
+// Closed countries (visa map): thick red outline with a dark halo, plus a "no entry" sign and a note
+function drawClosed(c, alpha, k, sx, sy) {
+  c.save();
+  c.lineJoin = "round";
+  for (const { code } of CLOSED_LABELS) {
+    const path = countryPath[ISO[code]];
+    if (!path) continue;
+    c.globalAlpha = alpha;
+    c.strokeStyle = COL["--night"]; c.lineWidth = 6 / k; c.stroke(path);
+    c.strokeStyle = COL["--closed"]; c.lineWidth = 3.2 / k; c.stroke(path);
+  }
+
+  c.setTransform(DPR, 0, 0, DPR, 0, 0);
+  c.globalAlpha = alpha; c.textBaseline = "middle";
+  const scr = q => [sx(q), sy(q)];
+  for (const l of CLOSED_P) {
+    const [lx, ly] = scr(l.at), red = COL["--closed"];
+    c.beginPath(); c.arc(lx, ly, 8, 0, 7); c.fillStyle = red; c.fill();
+    c.lineWidth = 1.5; c.strokeStyle = COL["--night"]; c.stroke();
+    c.fillStyle = "#fff"; c.fillRect(lx - 4.5, ly - 1.4, 9, 2.8);
+    const tx = l.left ? lx - 12 : lx + 12;
+    c.textAlign = l.left ? "right" : "left"; c.lineWidth = 3; c.strokeStyle = COL["--night"];
+    c.font = "600 11px Inter, sans-serif";
+    c.strokeText(l.name, tx, ly - 6); c.fillStyle = "#ffb3b3"; c.fillText(l.name, tx, ly - 6);
+    c.font = "500 10px Inter, sans-serif";
+    c.strokeText(l.note.toUpperCase(), tx, ly + 7); c.fillStyle = red; c.fillText(l.note.toUpperCase(), tx, ly + 7);
+  }
+  c.restore();
+}
+
+// War arrows and the Taliban badge, drawn in screen space so they keep a constant size
+function drawGeoMarkers(c, alpha, sx, sy) {
+  const scr = q => [sx(q), sy(q)];
+  c.save();
+  c.setTransform(DPR, 0, 0, DPR, 0, 0);
+  c.globalAlpha = alpha; c.lineCap = c.lineJoin = "round";
+  const war = COL["--conflict"];
+
+  const arrow = (from, to) => {
+    const dx = to[0] - from[0], dy = to[1] - from[1], len = Math.hypot(dx, dy);
+    if (len < 14) return;
+    const ux = dx / len, uy = dy / len, gap = 7, head = 8;
+    const ex = to[0] - ux * gap, ey = to[1] - uy * gap;
+    const shaft = new Path2D(); shaft.moveTo(from[0], from[1]); shaft.lineTo(ex - ux * head * .6, ey - uy * head * .6);
+    const tip = new Path2D(); tip.moveTo(ex, ey);
+    tip.lineTo(ex - ux * head - uy * head * .55, ey - uy * head + ux * head * .55);
+    tip.lineTo(ex - ux * head + uy * head * .55, ey - uy * head - ux * head * .55); tip.closePath();
+    // Dark halo first so the arrow reads on top of the orange country fill
+    c.strokeStyle = COL["--night"]; c.lineWidth = 5; c.stroke(shaft); c.lineWidth = 4; c.stroke(tip);
+    c.strokeStyle = war; c.lineWidth = 2.2; c.stroke(shaft);
+    c.fillStyle = war; c.fill(tip);
+  };
+  const burst = (x, y, r) => {   // a small spiked "clash" mark
+    c.beginPath();
+    for (let j = 0; j < 16; j++) {
+      const rr = j % 2 ? r * .45 : r, t = j * Math.PI / 8;
+      c.lineTo(x + Math.cos(t) * rr, y + Math.sin(t) * rr);
+    }
+    c.closePath();
+    c.fillStyle = "#fff3d6"; c.strokeStyle = war; c.lineWidth = 1.5; c.fill(); c.stroke();
+  };
+
+  c.font = "600 11px Inter, sans-serif"; c.textBaseline = "middle";
+  const label = (text, x, y, align) => {
+    c.textAlign = align; c.lineWidth = 3; c.strokeStyle = COL["--night"];
+    c.strokeText(text, x, y); c.fillStyle = "#ffd2a6"; c.fillText(text, x, y);
+  };
+
+  for (const wp of WAR_P) {
+    const a = scr(wp.a), b = scr(wp.b), at = scr(wp.at);
+    arrow(a, at); arrow(b, at); burst(at[0], at[1], 7);
+    label(wp.label, at[0] + wp.off[0], at[1] + wp.off[1], wp.align || "center");
+  }
+
+  // Taliban badge: a dark disc with a flag on a pole
+  const [x, y] = scr(TALIBAN_P), tal = COL["--taliban"];
+  c.beginPath(); c.arc(x, y, 12, 0, 7);
+  c.fillStyle = COL["--night"]; c.fill(); c.strokeStyle = tal; c.lineWidth = 1.5; c.stroke();
+  c.strokeStyle = tal; c.lineWidth = 1.6;
+  c.beginPath(); c.moveTo(x - 4.5, y + 7); c.lineTo(x - 4.5, y - 7); c.stroke();
+  c.fillStyle = tal; c.beginPath();
+  c.moveTo(x - 4.5, y - 7); c.lineTo(x + 6, y - 5.2); c.lineTo(x + 3.5, y - 2.8); c.lineTo(x + 6, y - .4); c.lineTo(x - 4.5, y + .8);
+  c.closePath(); c.fill();
+  label("Taliban rule", x, y + 22, "center");
+
+  c.restore();
 }
 
 function fillCountries(c, colorFor, alpha) {
@@ -346,6 +499,7 @@ function drawFx(now) {
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
   const { k, tx, ty } = view;
   const [x, y] = [tx + k * view.p[0], ty + k * view.p[1]];
+  if (!isFinite(x + y)) return;   // e.g. a zero-size viewport during load
   const ph = (now / 1800) % 1;
 
   c.globalCompositeOperation = "lighter";
@@ -358,6 +512,15 @@ function drawFx(now) {
   c.fillStyle = "#fff"; c.beginPath(); c.arc(x, y, 3.2, 0, 7); c.fill();
   c.strokeStyle = `rgba(255,198,107,${1 - ph})`; c.lineWidth = 1.5;
   c.beginPath(); c.arc(x, y, 6 + ph * 28, 0, 7); c.stroke();
+
+  if (view.w.geo > 0) {
+    c.lineWidth = 1.5;
+    WAR_P.forEach(wp => {
+      const ax = tx + k * wp.at[0], ay = ty + k * wp.at[1];
+      c.strokeStyle = `rgba(255,154,61,${(1 - ph) * view.w.geo})`;
+      c.beginPath(); c.arc(ax, ay, 8 + ph * 18, 0, 7); c.stroke();
+    });
+  }
 
   if (view.pulse) {
     const q = P[AT[view.pulse]], ax = tx + k * q[0], ay = ty + k * q[1];
@@ -373,7 +536,7 @@ const stepEls = [...document.querySelectorAll(".step")];
 const stepDefs = stepEls.map(el => ({ ...STEPS[el.dataset.step], key: el.dataset.step }));
 const ease = d3.easeCubicInOut;
 const hudCountry = document.getElementById("hud-country"), hudMeta = document.getElementById("hud-meta"),
-      hudMode = document.getElementById("hud-mode"), hudSpend = document.getElementById("hud-spend"), hudBar = document.getElementById("hud-bar");
+      hudMode = document.getElementById("hud-mode"), hudFlags = document.getElementById("hud-flags"), hudSpend = document.getElementById("hud-spend"), hudBar = document.getElementById("hud-bar");
 const MODE_LABEL = { train: "by train", bus: "by bus", hitchhike: "hitchhiking", ferry: "by ferry" };
 
 function onScroll() {
@@ -398,9 +561,12 @@ function onScroll() {
   const [x, y] = projection([lon, lat]);
   const cx = (A.x0 + A.x1) / 2 * (1 - full) + W / 2 * full, cy = (A.y0 + A.y1) / 2 * (1 - full) + H / 2 * full;
 
-  const w = { geo: 0, visa: 0, routes: 0, flight: 0, budget: 0, future: (a.future || 0) * (1 - t) + (b.future || 0) * t };
+  const w = { geo: 0, visa: 0, routes: 0, flight: 0, budget: 0, future: (a.future || 0) * (1 - t) + (b.future || 0) * t,
+             plans: (a.plans || 0) * (1 - t) + (b.plans || 0) * t };
   if (a.overlay) w[a.overlay] += 1 - t;
   if (b.overlay) w[b.overlay] += t;
+
+  setVideos(a, b, t, i);
 
   const pos = pointAt(len);
   view = { k, tx: cx - k * x, ty: cy - k * y, len, w, p: pos.p,
@@ -409,12 +575,70 @@ function onScroll() {
   updateHud(pos, len);
 }
 
+// Background footage fades in like the map overlays; only the clips of nearby steps get loaded
+const BG_OPACITY = .5;
+const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const bgVideos = Object.fromEntries([...document.querySelectorAll("#bgvideo video")].map(v => [v.dataset.id, v]));
+const bgShade = document.querySelector("#bgvideo .shade");
+
+function setVideos(a, b, t, i) {
+  const w = {};
+  if (a.video) w[a.video] = (w[a.video] || 0) + 1 - t;
+  if (b.video) w[b.video] = (w[b.video] || 0) + t;
+  const next = i >= 0 && stepDefs[i + 1] ? stepDefs[i + 1].video : null;
+  for (const [id, v] of Object.entries(bgVideos)) {
+    const o = w[id] || 0;
+    v.style.opacity = o * BG_OPACITY;
+    if (o > 0 || id === next) v.preload = "auto";
+    if (o > 0 && v.paused && !REDUCED_MOTION) v.play().catch(() => {});
+    else if (o === 0 && !v.paused) v.pause();
+  }
+  bgShade.style.opacity = Math.max(0, ...Object.values(w));
+}
+
+// Small clips inside cards: play while on screen, muted until the viewer asks for sound
+document.querySelectorAll(".clip").forEach(clip => {
+  const v = clip.querySelector("video"), btn = clip.querySelector("button");
+  btn.addEventListener("click", () => {
+    v.muted = !v.muted;
+    btn.textContent = v.muted ? "Sound on" : "Sound off";
+    if (!v.muted && v.paused) v.play().catch(() => {});
+  });
+  new IntersectionObserver(([e]) => {
+    if (e.isIntersecting && !REDUCED_MOTION) { v.preload = "auto"; v.play().catch(() => {}); }
+    else if (!e.isIntersecting) v.pause();
+  }, { threshold: .6 }).observe(v);
+});
+
+const modeRows = MODES.map(([m, label, color, short]) => {
+  const row = document.createElement("div");
+  row.className = "mode-row";
+  row.innerHTML = `<span><span class="full">${label}</span><span class="short">${short}</span></span><div class="track"><i style="background:${color}"></i></div><span class="v">0 km</span>`;
+  document.getElementById("hud-modes").appendChild(row);
+  return { row, fill: row.querySelector("i"), v: row.querySelector(".v") };
+});
+
 function updateHud(pos, len) {
   const leg = RD.legs[SEG_LEG[Math.min(pos.i + 1, SEG_LEG.length - 1)]];
   const arrived = len >= CUM[AT[leg.to]] - .01, atStart = len <= CUM[AT[leg.from]] + .01;
   const here = arrived ? STOP[leg.to] : STOP[leg.from];
   const km = KM[pos.i] + (KM[pos.i + 1] != null ? (KM[pos.i + 1] - KM[pos.i]) * pos.t : 0);
-  hudCountry.textContent = here.country;
+  const names = countriesOf(here.country);
+  hudCountry.textContent = names.length ? names.join(" → ") : here.country;
+  const key = names.join("|");
+  if (hudFlags.dataset.key !== key) {
+    hudFlags.dataset.key = key;
+    hudFlags.innerHTML = names.map(n => `<img src="${FLAG_URL(COUNTRY[n][1])}" alt="">`).join("<span>→</span>");
+  }
+  view.here = names.map(n => COUNTRY[n][0]);
+  // Kilometres per means of transport so far; bars share one scale so they grow with the trip
+  const segMode = leg.mode, a = MODE_KM[pos.i], b = MODE_KM[pos.i + 1] || a;
+  MODES.forEach(([m], j) => {
+    const km = a[m] + (b[m] - a[m]) * pos.t, r = modeRows[j];
+    r.fill.style.width = (km / MODE_MAX * 100) + "%";
+    r.v.textContent = Math.round(km).toLocaleString("en") + " km";
+    r.row.classList.toggle("on", !arrived && !atStart && m === segMode);   // the mode being used right now
+  });
   hudMeta.textContent = `${here.name} · ${Math.round(km).toLocaleString("en")} km`;
   // Running day / spend counter, interpolated between the stops on either side
   const si = STOPS.indexOf(STOP[leg.from]), sj = STOPS.indexOf(STOP[leg.to]);

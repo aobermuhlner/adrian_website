@@ -27,6 +27,7 @@
     --alt-violet: #c58cff;
     --closed: #ff5a5a;
     --conflict: #ff9a3d;
+    --taliban: #cfc6ad;
     --visa-free: #3fc1a5;
     --visa-arrival: #e2d36b;
     --visa-req: #ff9a3d;
@@ -39,12 +40,26 @@
   #map, #fx { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
   #fx { pointer-events: none; }
 
-  #hud { position: fixed; top: 16px; right: 16px; z-index: 5; text-align: right; pointer-events: none;
-         font-size: 12px; color: var(--ink-2); letter-spacing: .04em; }
-  #hud #hud-mode { color: var(--glow); min-height: 1.2em; }
-  #hud .country { font: 600 18px Fraunces, serif; color: var(--ink); letter-spacing: 0; }
-  #hud .bar { width: 160px; height: 3px; background: rgba(255,255,255,.1); border-radius: 2px; margin: 8px 0 0 auto; overflow: hidden; }
+  #hud { position: fixed; top: 20px; right: 20px; z-index: 5; text-align: right; pointer-events: none;
+         font-size: 13px; color: var(--ink-2); letter-spacing: .04em; width: 240px;
+         padding: 14px 16px; border-radius: 14px; background: rgba(4,6,11,.55); backdrop-filter: blur(6px); }
+  #hud #hud-mode { color: var(--glow); min-height: 1.3em; }
+  #hud .country { font: 600 26px/1.15 Fraunces, serif; color: var(--ink); letter-spacing: 0;
+                  display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+  #hud .flags { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-3); font: 400 14px Inter, sans-serif; }
+  #hud .flags img { height: 20px; width: auto; border-radius: 3px; box-shadow: 0 0 0 1px rgba(255,255,255,.18); }
+  #hud .bar { width: 100%; height: 4px; background: rgba(255,255,255,.1); border-radius: 2px; margin: 10px 0 0 auto; overflow: hidden; }
   #hud .bar i { display: block; height: 100%; width: 0; background: var(--glow); }
+  #hud .modes { display: grid; gap: 5px; margin-top: 12px; font-size: 11.5px; }
+  #hud .mode-row { display: grid; grid-template-columns: 72px 1fr 64px; align-items: center; gap: 8px; opacity: .55;
+                   transition: opacity .3s; }
+  #hud .mode-row.on { opacity: 1; color: var(--ink); }
+  #hud .mode-row span:first-child { text-align: left; }
+  #hud .mode-row .track { height: 5px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
+  #hud .mode-row .track i { display: block; height: 100%; width: 0; border-radius: 3px; }
+  #hud .mode-row .short { display: none; }
+  @media (max-width: 760px) { #hud .mode-row .short { display: inline; } }
+  #hud .mode-row .v { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
   #story { position: relative; z-index: 2; }
   .step { min-height: 110vh; display: flex; align-items: center; padding: 0 6vw; }
@@ -73,6 +88,7 @@
 
   .legend { display: grid; gap: 6px; margin-top: 12px; font-size: 13px; color: var(--ink-2); }
   .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
+  .legend .sym { width: 30px; height: 12px; margin-right: 8px; vertical-align: -1px; }
   .legend i.line { height: 0; border-top: 2px dashed; border-radius: 0; width: 18px; vertical-align: 3px; }
 
   .seg { display: inline-flex; border: 1px solid var(--card-edge); border-radius: 8px; overflow: hidden; margin: 6px 0 4px; flex-wrap: wrap; }
@@ -98,6 +114,17 @@
   .bar-row .v { color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
   .placeholder { font-size: 11px; color: var(--ink-3); border-left: 2px solid var(--ink-3); padding-left: 8px; margin-top: 12px; }
 
+  /* Background footage: sits between the map and the light layer, crossfaded by scroll in story.js */
+  #bgvideo, #bgvideo video, #bgvideo .shade { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; }
+  #bgvideo video { object-fit: cover; opacity: 0; }
+  #bgvideo .shade { opacity: 0;
+    background: linear-gradient(90deg, rgba(4,6,11,.9) 0, rgba(4,6,11,.45) 40%, rgba(4,6,11,.05) 100%); }
+
+  .clip { position: relative; margin: 14px 0 4px; border-radius: 10px; overflow: hidden; border: 1px solid var(--card-edge); }
+  .clip video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: #000; }
+  .clip button { position: absolute; right: 8px; bottom: 8px; font: 500 12px Inter, sans-serif; color: var(--ink);
+                 background: rgba(4,6,11,.65); border: 1px solid var(--card-edge); border-radius: 99px; padding: 4px 10px; cursor: pointer; }
+
   .todo { text-align: left; color: var(--ink-2); font-size: 14px; columns: 2; column-gap: 32px; margin-top: 20px; }
   .todo li { margin-bottom: 6px; break-inside: avoid; }
 
@@ -106,21 +133,36 @@
     .card { max-width: none; width: 100%; padding: 18px; }
     h2 { font-size: 23px; }
     .todo { columns: 1; }
-    #hud .bar { width: 110px; }
+    #hud { top: 10px; right: 10px; width: 186px; padding: 9px 11px; font-size: 10.5px; letter-spacing: 0; }
+    #hud .country { font-size: 18px; gap: 7px; }
+    #hud .flags img { height: 14px; }
+    #hud .bar { margin-top: 6px; }
+    #hud .modes { gap: 2px; margin-top: 7px; font-size: 10px; }
+    #hud .mode-row { grid-template-columns: 34px 1fr 56px; gap: 5px; }
+    #hud .mode-row .full { display: none; }
+    #bgvideo .shade { background: linear-gradient(0deg, rgba(4,6,11,.9) 0, rgba(4,6,11,.4) 50%, rgba(4,6,11,.1) 100%); }
   }
 </style>
 </head>
 <body>
 
 <canvas id="map" aria-hidden="true"></canvas>
+<div id="bgvideo" aria-hidden="true">
+  <video data-id="karakol_horse" src="media/karakol_horse.mp4" poster="media/karakol_horse.jpg" muted loop playsinline preload="none"></video>
+  <video data-id="yurt_camp" src="media/yurt_camp.mp4" poster="media/yurt_camp.jpg" muted loop playsinline preload="none"></video>
+  <video data-id="truck_road" src="media/truck_road.mp4" poster="media/truck_road.jpg" muted loop playsinline preload="none"></video>
+  <video data-id="tashkomur_river" src="media/tashkomur_river.mp4" poster="media/tashkomur_river.jpg" muted loop playsinline preload="none"></video>
+  <div class="shade"></div>
+</div>
 <canvas id="fx" aria-hidden="true"></canvas>
 
 <div id="hud">
-  <div class="country" id="hud-country">South Korea</div>
+  <div class="country"><span class="flags" id="hud-flags"></span><span id="hud-country">South Korea</span></div>
   <div id="hud-meta">Seoul</div>
   <div id="hud-spend"></div>
   <div id="hud-mode"></div>
   <div class="bar"><i id="hud-bar"></i></div>
+  <div class="modes" id="hud-modes" aria-label="Distance by means of transport"></div>
 </div>
 
 <main id="story">
@@ -170,12 +212,13 @@
   <section class="step" data-step="geo">
     <div class="card">
       <p class="kicker">The map that drew the route</p>
-      <h2>Closed borders and active conflicts</h2>
-      <p>Iran became a war zone, with high arrest rates for foreigners. Afghanistan is under Taliban control. North Korea,
-        Turkmenistan and the land borders of Azerbaijan are closed. What remained was a narrow corridor.</p>
+      <h2>Active conflicts</h2>
+      <p>Iran became a war zone, with high arrest rates for foreigners. Afghanistan is under Taliban control.
+        Russia is at war with Ukraine, and India and Pakistan clashed over Kashmir.</p>
       <div class="legend">
-        <div><i style="background:var(--closed)"></i>Closed borders: North Korea, Turkmenistan, Azerbaijan</div>
-        <div><i style="background:var(--conflict)"></i>Active conflict or tension</div>
+        <div><svg class="sym" viewBox="0 0 30 12" aria-hidden="true"><path d="M1 6h7M29 6h-7" stroke="var(--conflict)" stroke-width="2"/><path d="M12 6 7 2.5v7zM18 6l5-3.5v7z" fill="var(--conflict)"/><circle cx="15" cy="6" r="2.4" fill="#fff3d6"/></svg>At war: Russia – Ukraine, Israel – Iran, India – Pakistan</div>
+        <div><svg class="sym" viewBox="0 0 30 12" aria-hidden="true"><circle cx="15" cy="6" r="5.5" fill="none" stroke="var(--taliban)"/><path d="M13 9.5v-7l5 1-1.2 1.2 1.2 1.2-5 .9" fill="var(--taliban)" stroke="var(--taliban)" stroke-width=".6"/></svg>Afghanistan: under Taliban rule</div>
+        <div><i class="line" style="border-color:var(--alt-violet)"></i>Faint dashed lines: the routes I planned</div>
       </div>
     </div>
   </section>
@@ -185,7 +228,8 @@
       <p class="kicker">Visas</p>
       <h2>Your passport decides your route</h2>
       <p>For a Swiss passport, almost the whole corridor is visa-free. Russia is the exception that nearly broke the plan.
-        Try another passport:</p>
+        And some borders are closed for every passport: North Korea, Turkmenistan and the land borders of Azerbaijan.
+        What remained was a narrow corridor. Try another passport:</p>
       <div class="seg" id="nat">
         <button data-nat="swiss" aria-pressed="true">Swiss</button>
         <button data-nat="german" aria-pressed="false">German</button>
@@ -198,6 +242,8 @@
         <div><i style="background:var(--visa-arrival)"></i>On arrival / e-visa</div>
         <div><i style="background:var(--visa-req)"></i>Visa required</div>
         <div><i style="background:var(--visa-hard)"></i>Very difficult</div>
+        <div><svg class="sym" viewBox="0 0 30 12" aria-hidden="true"><rect x="2" y="1.5" width="11" height="9" rx="1" fill="none" stroke="var(--closed)" stroke-width="2"/><circle cx="22" cy="6" r="5" fill="var(--closed)"/><rect x="19" y="5.2" width="6" height="1.6" fill="#fff"/></svg>Closed borders, not passable: North Korea, Turkmenistan, Azerbaijan</div>
+        <div><i class="line" style="border-color:var(--alt-violet)"></i>Faint dashed lines: the routes I planned</div>
       </div>
     </div>
   </section>
@@ -235,7 +281,47 @@
       <h2>Kyrgyzstan: alone on the road, but rarely lonely</h2>
       <p>Osh, Bishkek, Karakol and the mountains. Hitchhiking was free, spontaneous and a social adventure,
         and it became the default way to move.</p>
+      <div class="clip">
+        <video src="media/cab_talk.mp4" poster="media/cab_talk.jpg" muted loop playsinline preload="none"></video>
+        <button type="button">Sound on</button>
+      </div>
       <div class="placeholder">Data to add: rides, waiting times, invitations to eat.</div>
+    </div>
+  </section>
+
+  <section class="step" data-step="karakol">
+    <div class="card">
+      <p class="kicker">Karakol</p>
+      <h2>Into the Tian Shan on horseback</h2>
+      <p>Spruce forests, alpine meadows and snow-capped peaks above Karakol.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="yurts">
+    <div class="card">
+      <p class="kicker">In the mountains</p>
+      <h2>Nights in a yurt camp</h2>
+      <p>Felt walls, wide valleys and almost nothing between you and the sky.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="south">
+    <div class="card">
+      <p class="kicker">Hitchhiking south</p>
+      <h2>In the back of a truck, over the mountains</h2>
+      <p>From Bishkek south toward <strong>Tash-Kömür</strong>, riding in the truck bed with whoever else was going the same way.</p>
+      <div class="clip">
+        <video src="media/truck_man.mp4" poster="media/truck_man.jpg" muted loop playsinline preload="none"></video>
+        <button type="button">Sound on</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" data-step="tashkomur">
+    <div class="card">
+      <p class="kicker">Tash-Kömür</p>
+      <h2>Down to the Naryn river</h2>
+      <p>The last stop in Kyrgyzstan before crossing into Uzbekistan.</p>
     </div>
   </section>
 
