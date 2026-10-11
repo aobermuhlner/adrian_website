@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Long Way Home</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+  :root {
+    --night: #04060b;
+    --land-dark: #0b1019;
+    --land-dark-edge: #151c2a;
+    --land-lit: #1f2b40;
+    --land-lit-edge: #4a6488;
+    --glow: #ffc66b;
+    --glow-hot: #fff3d6;
+    --ink: #eef1f6;
+    --ink-2: #a9b3c4;
+    --ink-3: #6b7689;
+    --card: rgba(8, 12, 20, 0.88);
+    --card-edge: rgba(255, 255, 255, 0.08);
+    --alt-blue: #6ea8ff;
+    --alt-violet: #c58cff;
+    --closed: #ff5a5a;
+    --conflict: #ff9a3d;
+    --visa-free: #3fc1a5;
+    --visa-arrival: #e2d36b;
+    --visa-req: #ff9a3d;
+    --visa-hard: #ff5a5a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--night); color: var(--ink); }
+  body { font: 16px/1.6 Inter, system-ui, sans-serif; overflow-x: hidden; }
+
+  #map, #fx { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  #fx { pointer-events: none; }
+
+  #hud { position: fixed; top: 16px; right: 16px; z-index: 5; text-align: right; pointer-events: none;
+         font-size: 12px; color: var(--ink-2); letter-spacing: .04em; }
+  #hud #hud-mode { color: var(--glow); min-height: 1.2em; }
+  #hud .country { font: 600 18px Fraunces, serif; color: var(--ink); letter-spacing: 0; }
+  #hud .bar { width: 160px; height: 3px; background: rgba(255,255,255,.1); border-radius: 2px; margin: 8px 0 0 auto; overflow: hidden; }
+  #hud .bar i { display: block; height: 100%; width: 0; background: var(--glow); }
+
+  #story { position: relative; z-index: 2; }
+  .step { min-height: 110vh; display: flex; align-items: center; padding: 0 6vw; }
+  .step.center { justify-content: center; text-align: center; }
+  .card { max-width: 420px; background: var(--card); border: 1px solid var(--card-edge); border-radius: 14px;
+          padding: 24px 26px;
+          box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+  .step.center .card { background: none; border: none; box-shadow: none; max-width: 720px; }
+  .kicker { font-size: 11px; text-transform: uppercase; letter-spacing: .16em; color: var(--glow); margin: 0 0 8px; }
+  h1 { font: 300 clamp(44px, 8vw, 96px)/1 Fraunces, serif; margin: 0 0 16px; letter-spacing: -.02em; }
+  h2 { font: 600 28px/1.15 Fraunces, serif; margin: 0 0 12px; }
+  p { margin: 0 0 12px; color: var(--ink-2); }
+  p strong { color: var(--ink); font-weight: 600; }
+  .lede { font-size: 18px; color: var(--ink-2); }
+  .scroll-hint { margin-top: 40px; font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-3); }
+  .scroll-hint::after { content: ""; display: block; width: 1px; height: 48px; margin: 12px auto 0;
+          background: linear-gradient(var(--glow), transparent); animation: drip 2s infinite; }
+  @keyframes drip { 0% { transform: scaleY(0); transform-origin: top; } 60% { transform: scaleY(1); transform-origin: top; } 100% { opacity: 0; } }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0 4px; }
+  .stat b { display: block; font: 600 26px/1.1 Fraunces, serif; color: var(--ink); }
+  .stat span { font-size: 12px; color: var(--ink-3); }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .tag { font-size: 12px; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--card-edge); color: var(--ink-2); }
+  .tag.hot { border-color: rgba(255,198,107,.4); color: var(--glow); }
+
+  .legend { display: grid; gap: 6px; margin-top: 12px; font-size: 13px; color: var(--ink-2); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
+  .legend i.line { height: 0; border-top: 2px dashed; border-radius: 0; width: 18px; vertical-align: 3px; }
+
+  .seg { display: inline-flex; border: 1px solid var(--card-edge); border-radius: 8px; overflow: hidden; margin: 6px 0 4px; flex-wrap: wrap; }
+  .seg button { font: 500 12px Inter, sans-serif; background: none; color: var(--ink-2); border: 0; padding: 6px 10px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: rgba(255,198,107,.16); color: var(--glow); }
+
+  .bars { margin-top: 14px; display: grid; gap: 8px; }
+  .bar-row { display: grid; grid-template-columns: 92px 1fr 54px; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
+  .bar-row .track { height: 10px; }
+  .bar-row .fill { height: 100%; background: var(--glow); border-radius: 0 4px 4px 0; }
+  .bar-row .fill.muted { background: #8a94a8; }
+  .bar-row .fill.est { background: repeating-linear-gradient(135deg, var(--glow) 0 2px, transparent 2px 5px);
+                       box-shadow: inset 0 0 0 1px rgba(255,198,107,.5); }
+  .bar-row .fill.muted.est { background: repeating-linear-gradient(135deg, #8a94a8 0 2px, transparent 2px 5px);
+                       box-shadow: inset 0 0 0 1px rgba(138,148,168,.6); }
+  .tag.est { border-style: dashed; }
+  .hero-num { font: 300 64px/1 Fraunces, serif; color: var(--ink); margin: 6px 0 4px; }
+  .hero-num small { font: 500 14px Inter, sans-serif; color: var(--ink-3); margin-left: 6px; }
+  .key { display: flex; gap: 14px; font-size: 11px; color: var(--ink-3); margin-top: 8px; }
+  .key i { display: inline-block; width: 14px; height: 8px; margin-right: 6px; background: var(--glow); border-radius: 2px; }
+  .key i.est { background: repeating-linear-gradient(135deg, var(--glow) 0 2px, transparent 2px 5px);
+               box-shadow: inset 0 0 0 1px rgba(255,198,107,.5); }
+  .bar-row .v { color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+  .placeholder { font-size: 11px; color: var(--ink-3); border-left: 2px solid var(--ink-3); padding-left: 8px; margin-top: 12px; }
+
+  .todo { text-align: left; color: var(--ink-2); font-size: 14px; columns: 2; column-gap: 32px; margin-top: 20px; }
+  .todo li { margin-bottom: 6px; break-inside: avoid; }
+
+  @media (max-width: 760px) {
+    .step { align-items: flex-end; padding: 0 16px 10vh; }
+    .card { max-width: none; width: 100%; padding: 18px; }
+    h2 { font-size: 23px; }
+    .todo { columns: 1; }
+    #hud .bar { width: 110px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="map" aria-hidden="true"></canvas>
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<div id="hud">
+  <div class="country" id="hud-country">South Korea</div>
+  <div id="hud-meta">Seoul</div>
+  <div id="hud-spend"></div>
+  <div id="hud-mode"></div>
+  <div class="bar"><i id="hud-bar"></i></div>
+</div>
+
+<main id="story">
+
+  <section class="step center" data-step="intro">
+    <div class="card">
+      <p class="kicker">Seoul → Zurich · without a single flight</p>
+      <h1>A Long Way Home</h1>
+      <p class="lede">After a year of exchange at Hanyang University, I went home to Switzerland overland:
+        <strong>25,000 km, 13 countries, 4 months</strong>. This is that journey told through data.</p>
+      <div class="scroll-hint">Scroll</div>
+    </div>
+  </section>
+
+  <section class="step" data-step="seoul">
+    <div class="card">
+      <p class="kicker">Chapter 1 · The Dream</p>
+      <h2>One year in Asia, and one light still on in Seoul</h2>
+      <p>Two semesters at Hanyang University, with trips to Japan, Vietnam, Malaysia and Singapore in between.
+        Then the semester ended, and the obvious question was how to get home.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="flight">
+    <div class="card">
+      <p class="kicker">Why not just fly?</p>
+      <h2>A 12-hour flight, or four months on the ground</h2>
+      <p>The direct way home is a single arc of about <strong>8,900 km</strong>. I wanted three things a plane can't give:
+        a smaller footprint, an adventure, and the chance to <strong>see the countries in between</strong>.</p>
+      <div class="bars" id="chart-compare"></div>
+      <p class="placeholder">Draft: the CO₂ bars still need the transport log (km per mode) to compute.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="routes">
+    <div class="card">
+      <p class="kicker">Chapter 2 · The Plan</p>
+      <h2>Three ways home, and only one that stayed open</h2>
+      <div class="legend">
+        <div><i class="line" style="border-color:var(--alt-blue)"></i>Trans-Siberian: the fastest, but through Russia for weeks</div>
+        <div><i class="line" style="border-color:var(--alt-violet)"></i>Afghanistan & Iran: the original dream</div>
+        <div><i class="line" style="border-color:var(--glow)"></i>Central Asia & Caucasus: the chosen route</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" data-step="geo">
+    <div class="card">
+      <p class="kicker">The map that drew the route</p>
+      <h2>Closed borders and active conflicts</h2>
+      <p>Iran became a war zone, with high arrest rates for foreigners. Afghanistan is under Taliban control. North Korea,
+        Turkmenistan and the land borders of Azerbaijan are closed. What remained was a narrow corridor.</p>
+      <div class="legend">
+        <div><i style="background:var(--closed)"></i>Closed borders: North Korea, Turkmenistan, Azerbaijan</div>
+        <div><i style="background:var(--conflict)"></i>Active conflict or tension</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" data-step="visa">
+    <div class="card">
+      <p class="kicker">Visas</p>
+      <h2>Your passport decides your route</h2>
+      <p>For a Swiss passport, almost the whole corridor is visa-free. Russia is the exception that nearly broke the plan.
+        Try another passport:</p>
+      <div class="seg" id="nat">
+        <button data-nat="swiss" aria-pressed="true">Swiss</button>
+        <button data-nat="german" aria-pressed="false">German</button>
+        <button data-nat="american" aria-pressed="false">American</button>
+        <button data-nat="british" aria-pressed="false">British</button>
+        <button data-nat="korean" aria-pressed="false">Korean</button>
+      </div>
+      <div class="legend">
+        <div><i style="background:var(--visa-free)"></i>Visa-free</div>
+        <div><i style="background:var(--visa-arrival)"></i>On arrival / e-visa</div>
+        <div><i style="background:var(--visa-req)"></i>Visa required</div>
+        <div><i style="background:var(--visa-hard)"></i>Very difficult</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" data-step="depart">
+    <div class="card">
+      <p class="kicker">Chapter 3 · The Trip Begins</p>
+      <h2>An overnight ferry across the Yellow Sea</h2>
+      <p>Leaving from Incheon by boat around North Korea, the only way out of Korea that doesn't fly, and arriving in <strong>Dandong</strong>
+        on the Chinese border.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="china">
+    <div class="card">
+      <p class="kicker">Chapter 4 · China</p>
+      <h2>Across China, from the Great Wall to the Uyghur west</h2>
+      <p>Beijing and the Great Wall, Inner Mongolia, the Terracotta Army in Xi'an, then two days west to
+        <strong>Kashgar</strong>, the city with the highest share of Uyghur residents.</p>
+      <div class="tags"><span class="tag hot">≈103 h in transit</span><span class="tag">20h · 19h · 3h · 21h · 40h</span></div>
+    </div>
+  </section>
+
+  <section class="step" data-step="border1">
+    <div class="card">
+      <p class="kicker">Critical point</p>
+      <h2>The border I feared most</h2>
+      <p>China → Kyrgyzstan through Xinjiang. There was no bus ticket to be had, so I <strong>hitchhiked across the border</strong>.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="kyrgyz">
+    <div class="card">
+      <p class="kicker">Chapter 5 · Central Asia</p>
+      <h2>Kyrgyzstan: alone on the road, but rarely lonely</h2>
+      <p>Osh, Bishkek, Karakol and the mountains. Hitchhiking was free, spontaneous and a social adventure,
+        and it became the default way to move.</p>
+      <div class="placeholder">Data to add: rides, waiting times, invitations to eat.</div>
+    </div>
+  </section>
+
+  <section class="step" data-step="uzbek">
+    <div class="card">
+      <p class="kicker">Uzbekistan</p>
+      <h2>The heart of the Silk Road</h2>
+      <p><strong>Bukhara</strong>, the fortress city. <strong>Khiva</strong>, the old slave-trade city. <strong>Samarkand</strong>, capital of the Timurids.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="kazakh">
+    <div class="card">
+      <p class="kicker">Critical point · Kazakhstan</p>
+      <h2>Two weeks in Almaty, waiting for one visa</h2>
+      <p>Rejected for a Russian visa in Kyrgyzstan, Uzbekistan and Kazakhstan. Without it, the whole route collapsed.
+        Back in <strong>Almaty</strong> it finally came through, followed by a 41-hour train to Atyrau.</p>
+      <div class="tags"><span class="tag hot">≈59 h in transit</span><span class="tag">18h · 41h</span></div>
+    </div>
+  </section>
+
+  <section class="step" data-step="russia">
+    <div class="card">
+      <p class="kicker">Chapter 6 · Russia</p>
+      <h2>Through a country at war, as briefly as possible</h2>
+      <p>A long interrogation at the Kazakh–Russian border, then Astrakhan and a friend in <strong>Volgograd</strong>,
+        and out via Upper Lars into Georgia.</p>
+      <div class="tags"><span class="tag hot">≈44 h in transit</span><span class="tag">13h · 13h · 18h</span></div>
+    </div>
+  </section>
+
+  <section class="step" data-step="caucasus">
+    <div class="card">
+      <p class="kicker">Chapter 7 · Caucasus</p>
+      <h2>Mountains and hospitality</h2>
+      <p>Tbilisi, a loop to Yerevan, then Kutaisi, the peaks around Mestia and the Black Sea at Batumi.</p>
+      <div class="placeholder">Data to add: generosity (meals offered, places to sleep).</div>
+    </div>
+  </section>
+
+  <section class="step" data-step="turkey">
+    <div class="card">
+      <p class="kicker">Chapter 8 · Turkey</p>
+      <h2>From Mesopotamia to the Bosphorus</h2>
+      <p>A 24-hour journey south to Mardin and Diyarbakır, then Cappadocia, Ankara and finally Istanbul,
+        where Asia ends.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="balkans">
+    <div class="card">
+      <p class="kicker">Approaching home</p>
+      <h2>The Balkans pass by in days</h2>
+      <p>Sofia, Belgrade, Budapest, Vienna. After months of 40-hour trains, Europe suddenly feels small.</p>
+      <div class="tags"><span class="tag hot">≈36 h in transit</span><span class="tag">8h · 14h · 14h</span></div>
+    </div>
+  </section>
+
+  <section class="step" data-step="home">
+    <div class="card">
+      <p class="kicker">Chapter 9 · Home</p>
+      <h2>One last night under the stars, then Zurich</h2>
+      <p>Wild camping near Feldkirch, then across Liechtenstein and over the Swiss border.
+        Raclette, regular showers, and more than two T-shirts.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="budget">
+    <div class="card">
+      <p class="kicker">Myth 1 · "Isn't that expensive?"</p>
+      <h2>Four months on the road, for less than staying home</h2>
+      <div class="hero-num">CHF <span id="trip-perday">–</span><small>per day on average</small></div>
+      <p><strong id="trip-total">–</strong> in total over about <strong id="trip-days">–</strong> days, for transport,
+        beds and food. <span id="trip-measured">–</span> of it is measured from Revolut.</p>
+      <p>Daily cost per country (CHF):</p>
+      <div class="bars" id="chart-perday"></div>
+      <div class="key"><span><i></i>Revolut</span><span><i class="est"></i>Estimate</span></div>
+      <div class="bars" id="chart-zurich" style="margin-top:18px"></div>
+      <p class="placeholder">No Revolut data for China and Russia (other payment apps there; Western cards don't work in Russia).
+        Days in Georgia and the Zurich comparison are still guesses.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="finale">
+    <div class="card">
+      <p class="kicker">The whole way home</p>
+      <h2>It's easier than you think</h2>
+      <div class="stats">
+        <div class="stat"><b>25,000</b><span>km overland</span></div>
+        <div class="stat"><b>13</b><span>countries</span></div>
+        <div class="stat"><b>0</b><span>flights</span></div>
+      </div>
+      <p>Hours in transit per stretch (from the presentation slides):</p>
+      <div class="bars" id="chart-hours"></div>
+    </div>
+  </section>
+
+  <section class="step center" data-step="next">
+    <div class="card">
+      <p class="kicker">Prototype: what's still missing</p>
+      <h2>Data to collect for the full version</h2>
+      <ul class="todo">
+        <li>Arrival/departure dates per city (days per country)</li>
+        <li>Transport log: mode, km, hours per leg</li>
+        <li>CO₂ per leg vs. the direct flight</li>
+        <li>Budget by country and category</li>
+        <li>Hitchhiking: rides, waiting times, distances</li>
+        <li>Generosity: meals, invitations, couches</li>
+        <li>Photos and short videos per chapter</li>
+        <li>Safety: perception vs. reality per country</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<script src="route.js"></script>
+<script src="story.js"></script>
+</body>
+</html>
