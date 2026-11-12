@@ -11,6 +11,8 @@
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 <style>
   :root {
+    --font-display: "Fraunces", serif;
+    --font-body: "Inter", system-ui, sans-serif;
     --night: #04060b;
     --land-dark: #0b1019;
     --land-dark-edge: #151c2a;
@@ -35,7 +37,7 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--night); color: var(--ink); }
-  body { font: 16px/1.6 Inter, system-ui, sans-serif; overflow-x: hidden; }
+  body { font: 16px/1.6 var(--font-body); overflow-x: hidden; }
 
   #map, #fx { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
   #fx { pointer-events: none; }
@@ -44,9 +46,9 @@
          font-size: 13px; color: var(--ink-2); letter-spacing: .04em; width: 240px;
          padding: 14px 16px; border-radius: 14px; background: rgba(4,6,11,.55); backdrop-filter: blur(6px); }
   #hud #hud-mode { color: var(--glow); min-height: 1.3em; }
-  #hud .country { font: 600 26px/1.15 Fraunces, serif; color: var(--ink); letter-spacing: 0;
+  #hud .country { font: 600 26px/1.15 var(--font-display); color: var(--ink); letter-spacing: 0;
                   display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
-  #hud .flags { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-3); font: 400 14px Inter, sans-serif; }
+  #hud .flags { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-3); font: 400 14px var(--font-body); }
   #hud .flags img { height: 20px; width: auto; border-radius: 3px; box-shadow: 0 0 0 1px rgba(255,255,255,.18); }
   #hud .bar { width: 100%; height: 4px; background: rgba(255,255,255,.1); border-radius: 2px; margin: 10px 0 0 auto; overflow: hidden; }
   #hud .bar i { display: block; height: 100%; width: 0; background: var(--glow); }
@@ -61,16 +63,17 @@
   @media (max-width: 760px) { #hud .mode-row .short { display: inline; } }
   #hud .mode-row .v { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-  #story { position: relative; z-index: 2; }
-  .step { min-height: 110vh; display: flex; align-items: center; padding: 0 6vw; }
+  #story { position: relative; z-index: 2; pointer-events: none; }  /* the map below takes hover/tap; cards opt back in */
+  .step { min-height: 110vh; display: flex; align-items: center; padding: 0 6vw; pointer-events: none; }
+  .step .card { pointer-events: auto; }
   .step.center { justify-content: center; text-align: center; }
   .card { max-width: 420px; background: var(--card); border: 1px solid var(--card-edge); border-radius: 14px;
           padding: 24px 26px;
           box-shadow: 0 20px 60px rgba(0,0,0,.45); }
   .step.center .card { background: none; border: none; box-shadow: none; max-width: 720px; }
   .kicker { font-size: 11px; text-transform: uppercase; letter-spacing: .16em; color: var(--glow); margin: 0 0 8px; }
-  h1 { font: 300 clamp(44px, 8vw, 96px)/1 Fraunces, serif; margin: 0 0 16px; letter-spacing: -.02em; }
-  h2 { font: 600 28px/1.15 Fraunces, serif; margin: 0 0 12px; }
+  h1 { font: 300 clamp(44px, 8vw, 96px)/1 var(--font-display); margin: 0 0 16px; letter-spacing: -.02em; }
+  h2 { font: 600 28px/1.15 var(--font-display); margin: 0 0 12px; }
   p { margin: 0 0 12px; color: var(--ink-2); }
   p strong { color: var(--ink); font-weight: 600; }
   .lede { font-size: 18px; color: var(--ink-2); }
@@ -80,7 +83,7 @@
   @keyframes drip { 0% { transform: scaleY(0); transform-origin: top; } 60% { transform: scaleY(1); transform-origin: top; } 100% { opacity: 0; } }
 
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0 4px; }
-  .stat b { display: block; font: 600 26px/1.1 Fraunces, serif; color: var(--ink); }
+  .stat b { display: block; font: 600 26px/1.1 var(--font-display); color: var(--ink); }
   .stat span { font-size: 12px; color: var(--ink-3); }
   .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
   .tag { font-size: 12px; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--card-edge); color: var(--ink-2); }
@@ -91,9 +94,40 @@
   .legend .sym { width: 30px; height: 12px; margin-right: 8px; vertical-align: -1px; }
   .legend i.line { height: 0; border-top: 2px dashed; border-radius: 0; width: 18px; vertical-align: 3px; }
 
-  .seg { display: inline-flex; border: 1px solid var(--card-edge); border-radius: 8px; overflow: hidden; margin: 6px 0 4px; flex-wrap: wrap; }
-  .seg button { font: 500 12px Inter, sans-serif; background: none; color: var(--ink-2); border: 0; padding: 6px 10px; cursor: pointer; }
-  .seg button[aria-pressed="true"] { background: rgba(255,198,107,.16); color: var(--glow); }
+  /* Passport picker: framed as a call to action so it isn't mistaken for a static legend */
+  .try { margin: 14px 0 6px; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,198,107,.35);
+         background: rgba(255,198,107,.06); }
+  .try-label { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 12px; font-weight: 600;
+               text-transform: uppercase; letter-spacing: .12em; color: var(--glow); }
+  .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--glow); box-shadow: 0 0 0 0 rgba(255,198,107,.7);
+               animation: ping 1.6s infinite; }
+  .try.touched .pulse-dot { animation: none; }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(255,198,107,.7); } 100% { box-shadow: 0 0 0 10px rgba(255,198,107,0); } }
+  .passports { display: flex; flex-wrap: wrap; gap: 6px; }
+  .passports button { display: inline-flex; align-items: center; gap: 6px; font: 500 13px var(--font-body); color: var(--ink);
+                      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.16); border-radius: 99px;
+                      padding: 6px 12px 6px 7px; cursor: pointer; transition: background .2s, border-color .2s, transform .1s; }
+  .passports button:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.3); }
+  .passports button:active { transform: scale(.96); }
+  .passports button img { width: 20px; height: 15px; border-radius: 3px; object-fit: cover; }
+  .passports button[aria-pressed="true"] { background: rgba(255,198,107,.2); border-color: var(--glow); color: var(--glow-hot); }
+  .visa-summary { margin: 10px 0 0; font-size: 13px; color: var(--ink); }
+  .visa-summary b { font-weight: 600; }
+  .try-hint { margin: 4px 0 0; font-size: 12px; color: var(--ink-3); }
+
+  .conflicts { display: grid; gap: 12px; margin-top: 4px; }
+  .conflict h3 { display: flex; align-items: center; margin: 0 0 2px; font: 600 15px var(--font-body); color: var(--ink); }
+  .conflict h3 .sym { width: 30px; height: 12px; margin-right: 8px; flex: none; }
+  .conflict p { margin: 0; font-size: 13.5px; line-height: 1.5; }
+
+  /* Map tooltip (visa step) */
+  #tip { position: fixed; z-index: 6; pointer-events: none; max-width: 250px; padding: 10px 12px; border-radius: 10px;
+         background: rgba(4,6,11,.92); border: 1px solid var(--card-edge); box-shadow: 0 10px 30px rgba(0,0,0,.5);
+         font-size: 12.5px; line-height: 1.45; color: var(--ink-2); opacity: 0; transition: opacity .15s; }
+  #tip.on { opacity: 1; }
+  #tip b { display: block; font: 600 15px var(--font-display); color: var(--ink); margin-bottom: 2px; }
+  #tip .st { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; margin-bottom: 3px; }
+  #tip .st i { width: 10px; height: 10px; border-radius: 3px; }
 
   .bars { margin-top: 14px; display: grid; gap: 8px; }
   .bar-row { display: grid; grid-template-columns: 92px 1fr 54px; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
@@ -105,8 +139,8 @@
   .bar-row .fill.muted.est { background: repeating-linear-gradient(135deg, #8a94a8 0 2px, transparent 2px 5px);
                        box-shadow: inset 0 0 0 1px rgba(138,148,168,.6); }
   .tag.est { border-style: dashed; }
-  .hero-num { font: 300 64px/1 Fraunces, serif; color: var(--ink); margin: 6px 0 4px; }
-  .hero-num small { font: 500 14px Inter, sans-serif; color: var(--ink-3); margin-left: 6px; }
+  .hero-num { font: 300 64px/1 var(--font-display); color: var(--ink); margin: 6px 0 4px; }
+  .hero-num small { font: 500 14px var(--font-body); color: var(--ink-3); margin-left: 6px; }
   .key { display: flex; gap: 14px; font-size: 11px; color: var(--ink-3); margin-top: 8px; }
   .key i { display: inline-block; width: 14px; height: 8px; margin-right: 6px; background: var(--glow); border-radius: 2px; }
   .key i.est { background: repeating-linear-gradient(135deg, var(--glow) 0 2px, transparent 2px 5px);
@@ -121,8 +155,10 @@
     background: linear-gradient(90deg, rgba(4,6,11,.9) 0, rgba(4,6,11,.45) 40%, rgba(4,6,11,.05) 100%); }
 
   .clip { position: relative; margin: 14px 0 4px; border-radius: 10px; overflow: hidden; border: 1px solid var(--card-edge); }
+  .yt { margin: 14px 0 4px; border-radius: 10px; overflow: hidden; border: 1px solid var(--card-edge); background: #000; }
+  .yt iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; }
   .clip video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: #000; }
-  .clip button { position: absolute; right: 8px; bottom: 8px; font: 500 12px Inter, sans-serif; color: var(--ink);
+  .clip button { position: absolute; right: 8px; bottom: 8px; font: 500 12px var(--font-body); color: var(--ink);
                  background: rgba(4,6,11,.65); border: 1px solid var(--card-edge); border-radius: 99px; padding: 4px 10px; cursor: pointer; }
 
   .todo { text-align: left; color: var(--ink-2); font-size: 14px; columns: 2; column-gap: 32px; margin-top: 20px; }
@@ -155,6 +191,7 @@
   <div class="shade"></div>
 </div>
 <canvas id="fx" aria-hidden="true"></canvas>
+<div id="tip" role="status" aria-live="polite"></div>
 
 <div id="hud">
   <div class="country"><span class="flags" id="hud-flags"></span><span id="hud-country">South Korea</span></div>
@@ -171,8 +208,9 @@
     <div class="card">
       <p class="kicker">Seoul → Zurich · without a single flight</p>
       <h1>A Long Way Home</h1>
-      <p class="lede">After a year of exchange at Hanyang University, I went home to Switzerland overland:
-        <strong>25,000 km, 13 countries, 4 months</strong>. This is that journey told through data.</p>
+      <p class="lede">Seoul was my home for a year. When my exchange at Hanyang University ended, I set off
+        for Switzerland the long way, over land and without a single plane:
+        <strong>25,000 km, 13 countries, 4 months</strong>. This is that journey, told through its data.</p>
       <div class="scroll-hint">Scroll</div>
     </div>
   </section>
@@ -180,9 +218,12 @@
   <section class="step" data-step="seoul">
     <div class="card">
       <p class="kicker">Chapter 1 · The Dream</p>
-      <h2>One year in Asia, and one light still on in Seoul</h2>
-      <p>Two semesters at Hanyang University, with trips to Japan, Vietnam, Malaysia and Singapore in between.
-        Then the semester ended, and the obvious question was how to get home.</p>
+      <h2>Living in Seoul, not just visiting</h2>
+      <p>Two semesters turned Seoul from a destination into everyday life: <strong>[what living in Korea was really like,
+        e.g. the pace, the food, the commute, what surprised you]</strong>. In between came short trips to Japan, Vietnam,
+        Malaysia and Singapore.</p>
+      <p>Then the last exam was over, and the question was no longer whether to go home, but how.</p>
+      <p class="placeholder">Draft: the bracket still needs your own words about life in Korea.</p>
     </div>
   </section>
 
@@ -203,7 +244,7 @@
       <h2>Three ways home, and only one that stayed open</h2>
       <div class="legend">
         <div><i class="line" style="border-color:var(--alt-blue)"></i>Trans-Siberian: the fastest, but through Russia for weeks</div>
-        <div><i class="line" style="border-color:var(--alt-violet)"></i>Afghanistan & Iran: the original dream</div>
+        <div><i class="line" style="border-color:var(--alt-violet)"></i>Afghanistan & Iran: the original Silk Road</div>
         <div><i class="line" style="border-color:var(--glow)"></i>Central Asia & Caucasus: the chosen route</div>
       </div>
     </div>
@@ -212,12 +253,27 @@
   <section class="step" data-step="geo">
     <div class="card">
       <p class="kicker">The map that drew the route</p>
-      <h2>Active conflicts</h2>
-      <p>Iran became a war zone, with high arrest rates for foreigners. Afghanistan is under Taliban control.
-        Russia is at war with Ukraine, and India and Pakistan clashed over Kashmir.</p>
+      <h2>Four conflicts on the way home</h2>
+      <p>In summer 2025, politics shaped the route as much as geography did.</p>
+      <div class="conflicts">
+        <div class="conflict">
+          <h3><svg class="sym" viewBox="0 0 30 12" aria-hidden="true"><path d="M1 6h7M29 6h-7" stroke="var(--conflict)" stroke-width="2"/><path d="M12 6 7 2.5v7zM18 6l5-3.5v7z" fill="var(--conflict)"/><circle cx="15" cy="6" r="2.4" fill="#fff3d6"/></svg>Israel – Iran</h3>
+          <p>In June 2025, Israel and then the US bombed Iran in a twelve-day war. Hundreds were arrested as alleged spies, Western travellers among them. The borders stayed open, but the risk of detention <strong>ruled Iran out</strong>.</p>
+        </div>
+        <div class="conflict">
+          <h3><svg class="sym" viewBox="0 0 30 12" aria-hidden="true"><circle cx="15" cy="6" r="5.5" fill="none" stroke="var(--taliban)"/><path d="M13 9.5v-7l5 1-1.2 1.2 1.2 1.2-5 .9" fill="var(--taliban)" stroke="var(--taliban)" stroke-width=".6"/></svg>Afghanistan</h3>
+          <p>Under Taliban rule since 2021, and oddly safer to cross than in the civil war years: civilian casualties fell sharply. Still an option, but <strong>without Iran the road west led nowhere</strong>.</p>
+        </div>
+        <div class="conflict">
+          <h3><svg class="sym" viewBox="0 0 30 12" aria-hidden="true"><path d="M1 6h7M29 6h-7" stroke="var(--conflict)" stroke-width="2"/><path d="M12 6 7 2.5v7zM18 6l5-3.5v7z" fill="var(--conflict)"/><circle cx="15" cy="6" r="2.4" fill="#fff3d6"/></svg>Russia – Ukraine</h3>
+          <p>At war with Ukraine since 2022. Switzerland advises against travel there, Western cards don't work and visas are hard to get. If there was any way around it, <strong>I wanted to avoid Russia</strong>.</p>
+        </div>
+        <div class="conflict">
+          <h3><svg class="sym" viewBox="0 0 30 12" aria-hidden="true"><path d="M1 6h7M29 6h-7" stroke="var(--conflict)" stroke-width="2"/><path d="M12 6 7 2.5v7zM18 6l5-3.5v7z" fill="var(--conflict)"/><circle cx="15" cy="6" r="2.4" fill="#fff3d6"/></svg>India – Pakistan</h3>
+          <p>After a terror attack in Kashmir in April 2025, India <strong>closed Attari–Wagah</strong>, the only land crossing between the two, and in May they fought a four-day conflict.</p>
+        </div>
+      </div>
       <div class="legend">
-        <div><svg class="sym" viewBox="0 0 30 12" aria-hidden="true"><path d="M1 6h7M29 6h-7" stroke="var(--conflict)" stroke-width="2"/><path d="M12 6 7 2.5v7zM18 6l5-3.5v7z" fill="var(--conflict)"/><circle cx="15" cy="6" r="2.4" fill="#fff3d6"/></svg>At war: Russia – Ukraine, Israel – Iran, India – Pakistan</div>
-        <div><svg class="sym" viewBox="0 0 30 12" aria-hidden="true"><circle cx="15" cy="6" r="5.5" fill="none" stroke="var(--taliban)"/><path d="M13 9.5v-7l5 1-1.2 1.2 1.2 1.2-5 .9" fill="var(--taliban)" stroke="var(--taliban)" stroke-width=".6"/></svg>Afghanistan: under Taliban rule</div>
         <div><i class="line" style="border-color:var(--alt-violet)"></i>Faint dashed lines: the routes I planned</div>
       </div>
     </div>
@@ -227,15 +283,20 @@
     <div class="card">
       <p class="kicker">Visas</p>
       <h2>Your passport decides your route</h2>
-      <p>For a Swiss passport, almost the whole corridor is visa-free. Russia is the exception that nearly broke the plan.
-        And some borders are closed for every passport: North Korea, Turkmenistan and the land borders of Azerbaijan.
-        What remained was a narrow corridor. Try another passport:</p>
-      <div class="seg" id="nat">
-        <button data-nat="swiss" aria-pressed="true">Swiss</button>
-        <button data-nat="german" aria-pressed="false">German</button>
-        <button data-nat="american" aria-pressed="false">American</button>
-        <button data-nat="british" aria-pressed="false">British</button>
-        <button data-nat="korean" aria-pressed="false">Korean</button>
+      <p>With a Swiss passport, almost the whole corridor was visa-free in 2025. Russia was the exception that nearly
+        broke the plan. Some borders were closed to every passport: North Korea, Turkmenistan and the land borders of
+        Azerbaijan. What remained was a narrow corridor.</p>
+      <div class="try">
+        <p class="try-label"><span class="pulse-dot" aria-hidden="true"></span>Try it: switch the passport</p>
+        <div class="passports" id="nat" role="group" aria-label="Passport">
+          <button data-nat="swiss" data-flag="ch" aria-pressed="true">Swiss</button>
+          <button data-nat="german" data-flag="de" aria-pressed="false">German</button>
+          <button data-nat="american" data-flag="us" aria-pressed="false">American</button>
+          <button data-nat="british" data-flag="gb" aria-pressed="false">British</button>
+          <button data-nat="korean" data-flag="kr" aria-pressed="false">Korean</button>
+        </div>
+        <p class="visa-summary" id="visa-summary"></p>
+        <p class="try-hint">Hover or tap a country on the map for the details.</p>
       </div>
       <div class="legend">
         <div><i style="background:var(--visa-free)"></i>Visa-free</div>
@@ -252,8 +313,8 @@
     <div class="card">
       <p class="kicker">Chapter 3 · The Trip Begins</p>
       <h2>An overnight ferry across the Yellow Sea</h2>
-      <p>Leaving from Incheon by boat around North Korea, the only way out of Korea that doesn't fly, and arriving in <strong>Dandong</strong>
-        on the Chinese border.</p>
+      <p>From Incheon, the ferry sails north overnight, past the coast of North Korea, to <strong>Dandong</strong>:
+        the largest Chinese city on the North Korean border, looking straight across the Yalu River.</p>
     </div>
   </section>
 
@@ -272,6 +333,11 @@
       <p class="kicker">Critical point</p>
       <h2>The border I feared most</h2>
       <p>China → Kyrgyzstan through Xinjiang. There was no bus ticket to be had, so I <strong>hitchhiked across the border</strong>.</p>
+      <div class="yt">
+        <iframe src="https://www.youtube-nocookie.com/embed/vELbmxVjYQU?start=789&rel=0&modestbranding=1&playsinline=1"
+          title="Hours of Interrogation: crossing the Chinese border (YouTube)" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"
+          allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe>
+      </div>
     </div>
   </section>
 
@@ -440,5 +506,6 @@
 
 <script src="route.js"></script>
 <script src="story.js"></script>
+<script src="fonts.js"></script>
 </body>
 </html>

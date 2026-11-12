@@ -75,7 +75,8 @@ const ALT_ROUTES = [
 // ISO numeric ids used by world-atlas
 const ISO = { KOR:"410", PRK:"408", CHN:"156", MNG:"496", KGZ:"417", UZB:"860", KAZ:"398", RUS:"643", GEO:"268",
   ARM:"051", TUR:"792", BGR:"100", SRB:"688", HUN:"348", AUT:"040", CHE:"756", AZE:"031", TKM:"795",
-  IRN:"364", AFG:"004", UKR:"804", ISR:"376", IND:"356", PAK:"586" };
+  IRN:"364", AFG:"004", UKR:"804", ISR:"376", IND:"356", PAK:"586",
+  POL:"616", LTU:"440", LVA:"428", EST:"233" };
 
 // Notebook "Geopolitics" map: closed borders vs. active conflict
 const GEO_STATUS = { PRK:"closed", TKM:"closed", AZE:"closed", AFG:"taliban",
@@ -97,21 +98,60 @@ const CLOSED_LABELS = [
   { code: "AZE", at: [47.8, 40.4],  name: "Azerbaijan",   note: "land border closed", left: true },
 ];
 
-// Visa table from PROJECT_STRUCTURE.md: 0 free, 1 arrival/e-visa, 2 required, 3 very difficult
+// Visa rules for an ordinary passport, as they stood in summer 2025 (when I travelled).
+// 0 visa-free, 1 on arrival / e-visa, 2 visa required, 3 very difficult. Fact-checked Nov 2026;
+// rules change often, so the notes say "in 2025" where something has changed since.
+const NATS = ["swiss", "german", "american", "british", "korean"];
+const NAT_LABEL = { swiss: "Swiss", german: "German", american: "American", british: "British", korean: "Korean" };
+const V = (name, levels, notes) => ({ name, ...Object.fromEntries(NATS.map((n, i) => [n, levels[i]])), notes });
 const VISA = {
-  CHN: { swiss:0, german:2, american:2, british:0, korean:0 },
-  KGZ: { swiss:0, german:0, american:0, british:0, korean:2 },
-  UZB: { swiss:0, german:0, american:0, british:0, korean:2 },
-  KAZ: { swiss:0, german:0, american:0, british:0, korean:0 },
-  RUS: { swiss:3, german:3, american:3, british:3, korean:3 },
-  GEO: { swiss:0, german:0, american:0, british:0, korean:0 },
-  ARM: { swiss:0, german:0, american:0, british:0, korean:1 },
-  TUR: { swiss:0, german:0, american:1, british:0, korean:0 },
-  BGR: { swiss:0, german:0, american:0, british:0, korean:0 },
-  SRB: { swiss:0, german:0, american:0, british:0, korean:0 },
-  HUN: { swiss:0, german:0, american:0, british:0, korean:0 },
-  AUT: { swiss:0, german:0, american:0, british:0, korean:0 },
+  CHN: V("China", [0, 0, 2, 2, 0], {
+    swiss: "Visa-free for 30 days (China's unilateral waiver, since 2024).",
+    german: "Visa-free for 30 days (China's unilateral waiver, since Dec 2023).",
+    american: "Visa required. Only a 240-hour visa-free transit to a third country.",
+    british: "Visa required in 2025. Visa-free only since February 2026.",
+    korean: "Visa-free for 30 days (since November 2024)." }),
+  MNG: V("Mongolia", [0, 0, 0, 0, 0], {
+    _: "Visa-free for 30 days or more. For Swiss, British and Korean citizens through a temporary waiver." }),
+  KGZ: V("Kyrgyzstan", [0, 0, 0, 0, 0], { _: "Visa-free for 60 days." }),
+  UZB: V("Uzbekistan", [0, 0, 0, 0, 0], { _: "Visa-free for 30 days." }),
+  KAZ: V("Kazakhstan", [0, 0, 0, 0, 0], { _: "Visa-free for 30 days." }),
+  TKM: V("Turkmenistan", [3, 3, 3, 3, 3], {
+    _: "Visa only with a letter of invitation or a short transit visa, both often refused. Effectively closed." }),
+  AFG: V("Afghanistan", [2, 2, 2, 2, 3], {
+    _: "Visa required, issued by Taliban-run consulates, e.g. in Islamabad, Tashkent or Dushanbe.",
+    korean: "South Korean law has banned travel to Afghanistan since 2007." }),
+  IRN: V("Iran", [1, 1, 3, 3, 1], {
+    _: "Visa on arrival or e-visa. Several Europeans were detained on spying charges in 2025.",
+    american: "Visa only through an embassy, with a mandatory guided tour and months of processing.",
+    british: "Visa only through an embassy, with a mandatory guided tour and months of processing.",
+    korean: "E-visa possible, but Seoul's travel warning was raised to level 3 in June 2025." }),
+  RUS: V("Russia", [3, 3, 3, 3, 0], {
+    swiss: "Visa required. The e-visa only works at listed checkpoints, and consulates abroad turned me down three times.",
+    german: "Visa required. The e-visa only works at listed checkpoints, and consulates abroad are restrictive.",
+    american: "Visa required, with an invitation letter. Not eligible for the e-visa.",
+    british: "Visa required, with an invitation letter. Not eligible for the e-visa.",
+    korean: "Visa-free for 60 days, thanks to a 2014 agreement." }),
+  AZE: V("Azerbaijan", [1, 1, 1, 1, 1], {
+    _: "E-visa, but only by air: the land borders have been closed since 2020." }),
+  GEO: V("Georgia", [0, 0, 0, 0, 0], { _: "Visa-free for up to a year." }),
+  ARM: V("Armenia", [0, 0, 0, 0, 0], { _: "Visa-free for 180 days." }),
+  TUR: V("Turkey", [0, 0, 0, 0, 0], {
+    _: "Visa-free for 90 days.", american: "Visa-free for 90 days (the e-visa was dropped at the end of 2023)." }),
+  BGR: V("Bulgaria", [0, 0, 0, 0, 0], { _: "Schengen: visa-free." }),
+  SRB: V("Serbia", [0, 0, 0, 0, 0], { _: "Visa-free for 90 days." }),
+  HUN: V("Hungary", [0, 0, 0, 0, 0], { _: "Schengen: visa-free." }),
+  AUT: V("Austria", [0, 0, 0, 0, 0], { _: "Schengen: visa-free." }),
+  POL: V("Poland", [0, 0, 0, 0, 0], { _: "Schengen: visa-free." }),
+  LTU: V("Lithuania", [0, 0, 0, 0, 0], { _: "Schengen: visa-free." }),
+  LVA: V("Latvia", [0, 0, 0, 0, 0], { _: "Schengen: visa-free." }),
+  EST: V("Estonia", [0, 0, 0, 0, 0], { _: "Schengen: visa-free." }),
 };
+for (const v of Object.values(VISA)) {   // Swiss and German citizens move freely in Schengen
+  if (v.notes._ === "Schengen: visa-free.") v.notes.swiss = v.notes.german = "Free movement (Schengen).";
+}
+const visaNote = (code, nat) => VISA[code].notes[nat] || VISA[code].notes._ || "";
+const VISA_LABEL = ["Visa-free", "On arrival / e-visa", "Visa required", "Very difficult"];
 const VISA_VARS = ["--visa-free", "--visa-arrival", "--visa-req", "--visa-hard"];
 
 // Story steps: where the light is, where the camera looks, which overlay shows.
@@ -157,6 +197,8 @@ const COL = {};
 ["--night", "--land-dark", "--land-dark-edge", "--land-lit", "--land-lit-edge", "--glow",
  "--alt-blue", "--alt-violet", "--closed", "--conflict", "--taliban", ...VISA_VARS].forEach(v => COL[v] = css(v));
 
+let FONT_BODY = css("--font-body");   // canvas labels follow the page font (see fonts.js)
+
 const baseCv = document.getElementById("map"), fxCv = document.getElementById("fx");
 const bctx = baseCv.getContext("2d"), fctx = fxCv.getContext("2d");
 
@@ -167,6 +209,8 @@ let WAR_P = [], TALIBAN_P, CLOSED_P = [];  // the geopolitics markers in base pr
 let view = null;        // current camera + route state
 let dirty = true;
 let nationality = "swiss";
+let hoverCode = null;   // country under the pointer on the visa map
+let visaShapes = [];    // [code, feature] for hit-testing the visa map
 let hatch = null;       // diagonal pattern marking estimated values
 
 const isWide = () => innerWidth > 760;
@@ -205,6 +249,8 @@ function setup() {
   countryPath = {};
   const wanted = new Set(Object.values(ISO));
   worlds.fine.features.forEach(f => { if (wanted.has(f.id)) countryPath[f.id] = toPath2D(f); });
+  const byId = Object.fromEntries(worlds.fine.features.map(f => [f.id, f]));
+  visaShapes = Object.keys(VISA).map(code => [code, byId[ISO[code]]]).filter(([, f]) => f);
 
   P = LINE.map(c => projection(c));
   CUM = [0];
@@ -309,6 +355,13 @@ function drawBase() {
   if (w.visa > 0) fillCountries(c, code => {
     const v = VISA[code]; return v ? COL[VISA_VARS[v[nationality]]] : null;
   }, .4 * w.visa);
+  if (w.visa > .5 && hoverCode && countryPath[ISO[hoverCode]]) {
+    const path = countryPath[ISO[hoverCode]];
+    c.save();
+    c.globalAlpha = .35; c.fillStyle = COL[VISA_VARS[VISA[hoverCode][nationality]]]; c.fill(path);
+    c.globalAlpha = 1; c.strokeStyle = "#fff"; c.lineWidth = 1.6 / k; c.lineJoin = "round"; c.stroke(path);
+    c.restore();
+  }
 
   // The country the traveler is in: a soft glowing outline (hidden while a thematic overlay is up)
   const hl = 1 - Math.min(1, w.geo + w.visa + w.budget + w.routes + w.flight);
@@ -381,7 +434,7 @@ function drawBase() {
 
   // 7. Labels (screen space, constant size) once zoomed in
   if (k >= 2) {
-    c.font = "500 12px Inter, sans-serif"; c.lineWidth = 3; c.strokeStyle = COL["--night"]; c.lineJoin = "round";
+    c.font = `500 12px ${FONT_BODY}`; c.lineWidth = 3; c.strokeStyle = COL["--night"]; c.lineJoin = "round";
     passed.forEach(s => {
       if (s.kind === "repeat") return;
       const x = sx(P[AT[s.id]]) + 8, y = sy(P[AT[s.id]]) - 8;
@@ -414,9 +467,9 @@ function drawClosed(c, alpha, k, sx, sy) {
     c.fillStyle = "#fff"; c.fillRect(lx - 4.5, ly - 1.4, 9, 2.8);
     const tx = l.left ? lx - 12 : lx + 12;
     c.textAlign = l.left ? "right" : "left"; c.lineWidth = 3; c.strokeStyle = COL["--night"];
-    c.font = "600 11px Inter, sans-serif";
+    c.font = `600 11px ${FONT_BODY}`;
     c.strokeText(l.name, tx, ly - 6); c.fillStyle = "#ffb3b3"; c.fillText(l.name, tx, ly - 6);
-    c.font = "500 10px Inter, sans-serif";
+    c.font = `500 10px ${FONT_BODY}`;
     c.strokeText(l.note.toUpperCase(), tx, ly + 7); c.fillStyle = red; c.fillText(l.note.toUpperCase(), tx, ly + 7);
   }
   c.restore();
@@ -454,7 +507,7 @@ function drawGeoMarkers(c, alpha, sx, sy) {
     c.fillStyle = "#fff3d6"; c.strokeStyle = war; c.lineWidth = 1.5; c.fill(); c.stroke();
   };
 
-  c.font = "600 11px Inter, sans-serif"; c.textBaseline = "middle";
+  c.font = `600 11px ${FONT_BODY}`; c.textBaseline = "middle";
   const label = (text, x, y, align) => {
     c.textAlign = align; c.lineWidth = 3; c.strokeStyle = COL["--night"];
     c.strokeText(text, x, y); c.fillStyle = "#ffd2a6"; c.fillText(text, x, y);
@@ -649,12 +702,60 @@ function updateHud(pos, len) {
   hudBar.style.width = (len / TOTAL * 100) + "%";
 }
 
-// Passport toggle
-document.querySelectorAll("#nat button").forEach(btn => btn.addEventListener("click", () => {
+// Passport picker: flags on the buttons, a one-line summary, and hover/tap details on the map
+const natButtons = [...document.querySelectorAll("#nat button")];
+const visaSummary = document.getElementById("visa-summary"), tip = document.getElementById("tip");
+natButtons.forEach(btn => btn.insertAdjacentHTML("afterbegin", `<img src="${FLAG_URL(btn.dataset.flag)}" alt="">`));
+function updateVisaSummary() {
+  const n = [0, 0, 0, 0];
+  Object.values(VISA).forEach(v => n[v[nationality]]++);
+  visaSummary.innerHTML = `<b>${NAT_LABEL[nationality]} passport</b>, ${Object.keys(VISA).length} countries: ` +
+    n.map((c, i) => c ? `<span style="color:${COL[VISA_VARS[i]]}">${c} ${VISA_LABEL[i].toLowerCase()}</span>` : "")
+     .filter(Boolean).join(" · ");
+}
+natButtons.forEach(btn => btn.addEventListener("click", () => {
   nationality = btn.dataset.nat;
-  document.querySelectorAll("#nat button").forEach(b => b.setAttribute("aria-pressed", b === btn));
+  natButtons.forEach(b => b.setAttribute("aria-pressed", b === btn));
+  btn.closest(".try").classList.add("touched");
+  updateVisaSummary();
+  if (hoverCode) showTip(hoverCode, lastTipXY);
   dirty = true;
 }));
+updateVisaSummary();
+
+let lastTipXY = [0, 0];
+function countryAt(x, y) {
+  if (!view || view.w.visa < .5) return null;
+  const ll = projection.invert([(x - view.tx) / view.k, (y - view.ty) / view.k]);
+  if (!ll) return null;
+  const hit = visaShapes.find(([, f]) => d3.geoContains(f, ll));
+  return hit ? hit[0] : null;
+}
+function showTip(code, [x, y]) {
+  const v = VISA[code], lvl = v[nationality];
+  tip.innerHTML = `<b>${v.name}</b><span class="st" style="color:${COL[VISA_VARS[lvl]]}"><i style="background:${COL[VISA_VARS[lvl]]}"></i>` +
+    `${VISA_LABEL[lvl]}</span><br>${visaNote(code, nationality)}` +
+    (CLOSED_LABELS.some(l => l.code === code) ? `<br><span style="color:var(--closed)">Border not passable for overland travellers.</span>` : "");
+  const tw = tip.offsetWidth || 250, th = tip.offsetHeight || 90;
+  tip.style.left = Math.min(innerWidth - tw - 8, Math.max(8, x + 14)) + "px";
+  tip.style.top = Math.min(innerHeight - th - 8, Math.max(8, y + 14)) + "px";
+  tip.classList.add("on");
+}
+function hover(e) {
+  const code = countryAt(e.clientX, e.clientY);
+  lastTipXY = [e.clientX, e.clientY];
+  if (code !== hoverCode) { hoverCode = code; dirty = true; }
+  baseCv.style.cursor = code ? "pointer" : "";
+  if (code) showTip(code, lastTipXY); else tip.classList.remove("on");
+}
+baseCv.addEventListener("pointermove", hover);
+baseCv.addEventListener("pointerdown", hover);   // touch: tap a country
+baseCv.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") { hoverCode = null; tip.classList.remove("on"); dirty = true; } });
+addEventListener("scroll", () => { if (hoverCode && (!view || view.w.visa < .5)) { hoverCode = null; tip.classList.remove("on"); dirty = true; } }, { passive: true });
+
+// Font explorer (fonts.js) swaps the page fonts; canvas labels need a redraw
+addEventListener("fontchange", () => { FONT_BODY = css("--font-body"); dirty = true; });
+document.fonts && document.fonts.ready.then(() => { dirty = true; });
 
 // ---------------------------------------------------------------------------
 // Small inline charts
