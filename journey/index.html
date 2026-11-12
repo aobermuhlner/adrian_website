@@ -157,12 +157,65 @@
   .clip { position: relative; margin: 14px 0 4px; border-radius: 10px; overflow: hidden; border: 1px solid var(--card-edge); }
   .yt { margin: 14px 0 4px; border-radius: 10px; overflow: hidden; border: 1px solid var(--card-edge); background: #000; }
   .yt iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; }
+  /* What the soundtrack is playing, just above the toggle */
+  .now-playing { position: fixed; right: 16px; bottom: 50px; z-index: 7; max-width: 230px; text-align: right;
+                 pointer-events: none; font: 11px/1.35 var(--font-body); color: var(--ink-2);
+                 text-shadow: 0 1px 3px rgba(4,6,11,.95), 0 0 12px rgba(4,6,11,.8);
+                 opacity: 0; transform: translateY(4px); transition: opacity .3s, transform .3s; }
+  .now-playing.on { opacity: 1; transform: none; }
+  .now-playing span { display: block; font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--glow); }
+  .now-playing b { display: block; font-weight: 500; color: var(--ink); font-size: 12px; }
+  .now-playing i { font-style: normal; }
+  @media (max-width: 760px) { .now-playing { right: 10px; bottom: 42px; max-width: 170px; font-size: 10px; } .now-playing b { font-size: 11px; } }
+  /* Soundtrack toggle, bottom right */
+  .music-btn { position: fixed; right: 16px; bottom: 16px; z-index: 7; display: inline-flex; align-items: center; gap: 7px;
+               font: 500 12px var(--font-body); color: var(--ink-2); background: rgba(4,6,11,.7); backdrop-filter: blur(6px);
+               border: 1px solid var(--card-edge); border-radius: 99px; padding: 6px 12px; cursor: pointer; }
+  .music-btn span[aria-hidden] { color: var(--glow); }
+  .music-btn[aria-pressed="false"] span[aria-hidden] { color: var(--ink-3); text-decoration: line-through; }
+  @media (max-width: 760px) { .music-btn { top: auto; bottom: 10px; right: 10px; padding: 5px 10px; } }
   .clip video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: #000; }
   .clip button { position: absolute; right: 8px; bottom: 8px; font: 500 12px var(--font-body); color: var(--ink);
                  background: rgba(4,6,11,.65); border: 1px solid var(--card-edge); border-radius: 99px; padding: 4px 10px; cursor: pointer; }
 
   .todo { text-align: left; color: var(--ink-2); font-size: 14px; columns: 2; column-gap: 32px; margin-top: 20px; }
+  .credits { text-align: left; margin-top: 18px; font-size: 12px; color: var(--ink-3); }
+  .credits summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
+  .credits p { font-size: 12px; color: var(--ink-3); margin: 8px 0; }
+  .credits ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+  .credits a { color: var(--ink-2); }
   .todo li { margin-bottom: 6px; break-inside: avoid; }
+
+  /* Desktop: keep the HUD and cards compact so the map stays the main thing */
+  @media (min-width: 761px) {
+    #hud { top: 16px; right: 16px; width: 196px; padding: 10px 12px; font-size: 11.5px; letter-spacing: .02em; border-radius: 12px; }
+    #hud .country { font-size: 19px; gap: 8px; }
+    #hud .flags img { height: 15px; }
+    #hud .bar { margin-top: 7px; height: 3px; }
+    #hud .modes { gap: 3px; margin-top: 8px; font-size: 10.5px; }
+    #hud .mode-row { grid-template-columns: 64px 1fr 56px; gap: 6px; }
+    #hud .mode-row .track { height: 4px; }
+    .card { max-width: 370px; padding: 20px 22px; }
+    p { font-size: 14.5px; line-height: 1.55; }   /* element selector so .lede, .kicker etc. still win */
+    h2 { font-size: 23px; }
+    .lede { font-size: 17px; }
+    .kicker { font-size: 10.5px; }
+  }
+  /* Short desktop windows (laptops, split screen): one step smaller again */
+  @media (min-width: 761px) and (max-height: 760px) {
+    #hud { width: 176px; font-size: 10.5px; }
+    #hud .country { font-size: 17px; }
+    #hud .modes { font-size: 10px; }
+    #hud .mode-row { grid-template-columns: 58px 1fr 52px; }
+    .card { max-width: 340px; padding: 16px 18px; }
+    p { font-size: 13.5px; margin-bottom: 9px; }
+    h2 { font-size: 20px; margin-bottom: 8px; }
+    .lede { font-size: 15.5px; }
+    .try { padding: 10px; margin-top: 10px; }
+    .passports button { font-size: 12px; padding: 4px 10px 4px 6px; }
+    .conflict p { font-size: 12.5px; }
+    .legend { font-size: 12px; gap: 4px; }
+  }
 
   @media (max-width: 760px) {
     .step { align-items: flex-end; padding: 0 16px 10vh; }
@@ -187,11 +240,18 @@
   <video data-id="karakol_horse" src="media/karakol_horse.mp4" poster="media/karakol_horse.jpg" muted loop playsinline preload="none"></video>
   <video data-id="yurt_camp" src="media/yurt_camp.mp4" poster="media/yurt_camp.jpg" muted loop playsinline preload="none"></video>
   <video data-id="truck_road" src="media/truck_road.mp4" poster="media/truck_road.jpg" muted loop playsinline preload="none"></video>
+  <video data-id="great_wall" src="media/great_wall.mp4" poster="media/great_wall.jpg" muted loop playsinline preload="none"></video>
+  <video data-id="terracotta" src="media/terracotta.mp4" poster="media/terracotta.jpg" muted loop playsinline preload="none"></video>
+  <video data-id="wedding_dance" src="media/wedding_dance.mp4" poster="media/wedding_dance.jpg" muted loop playsinline preload="none"></video>
+  <video data-id="train_platform" src="media/train_platform.mp4" poster="media/train_platform.jpg" muted loop playsinline preload="none"></video>
+  <video data-id="kashgar_street" src="media/kashgar_street.mp4" poster="media/kashgar_street.jpg" muted loop playsinline preload="none"></video>
   <video data-id="tashkomur_river" src="media/tashkomur_river.mp4" poster="media/tashkomur_river.jpg" muted loop playsinline preload="none"></video>
   <div class="shade"></div>
 </div>
 <canvas id="fx" aria-hidden="true"></canvas>
 <div id="tip" role="status" aria-live="polite"></div>
+<div class="now-playing" id="now-playing" aria-live="polite"></div>
+<button type="button" class="music-btn" id="music-btn" aria-pressed="true" title="Quiet background music: traditional recordings, credits at the end of the page"><span aria-hidden="true">♪</span><span class="lbl">Music on</span></button>
 
 <div id="hud">
   <div class="country"><span class="flags" id="hud-flags"></span><span id="hud-country">South Korea</span></div>
@@ -318,13 +378,52 @@
     </div>
   </section>
 
-  <section class="step" data-step="china">
+  <section class="step" data-step="beijing">
     <div class="card">
       <p class="kicker">Chapter 4 · China</p>
-      <h2>Across China, from the Great Wall to the Uyghur west</h2>
-      <p>Beijing and the Great Wall, Inner Mongolia, the Terracotta Army in Xi'an, then two days west to
-        <strong>Kashgar</strong>, the city with the highest share of Uyghur residents.</p>
+      <h2>Beijing and the Great Wall</h2>
+      <p>By train from Dandong to the capital: rush hour on a sea of electric scooters, then a day walking
+        <strong>the Great Wall</strong> through green mountains.</p>
+      <div class="clip">
+        <video src="media/scooter_rush.mp4" poster="media/scooter_rush.jpg" muted loop playsinline preload="none"></video>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" data-step="xian">
+    <div class="card">
+      <p class="kicker">Xi'an</p>
+      <h2>The old capital and its clay army</h2>
+      <p>After a detour through Inner Mongolia, <strong>Xi'an</strong>: the Bell Tower in the middle of the old city,
+        and the thousands of soldiers of the <strong>Terracotta Army</strong>.</p>
+      <div class="clip">
+        <video src="media/xian_bell_tower.mp4" poster="media/xian_bell_tower.jpg" muted loop playsinline preload="none"></video>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" data-step="china">
+    <div class="card">
+      <p class="kicker">Going west</p>
+      <h2>Two days by train to the Uyghur west</h2>
+      <p>From Xi'an the line runs across deserts to <strong>Kashgar</strong>, the city with the highest share of Uyghur residents.
+        All in all, China took more than 100 hours in transit.</p>
+      <div class="clip">
+        <video src="media/sleeper_car.mp4" poster="media/sleeper_car.jpg" muted loop playsinline preload="none"></video>
+      </div>
       <div class="tags"><span class="tag hot">≈103 h in transit</span><span class="tag">20h · 19h · 3h · 21h · 40h</span></div>
+    </div>
+  </section>
+
+  <section class="step" data-step="kashgar">
+    <div class="card">
+      <p class="kicker">Kashgar</p>
+      <h2>The quiet lanes of the old town</h2>
+      <p>Brick alleys under grapevines, carved wooden doors and scooters parked outside every house:
+        <strong>Kashgar</strong>, the last city before the mountains and the border.</p>
+      <div class="clip">
+        <video src="media/kashgar_lanes.mp4" poster="media/kashgar_lanes.jpg" muted loop playsinline preload="none"></video>
+      </div>
     </div>
   </section>
 
@@ -366,8 +465,9 @@
   <section class="step" data-step="yurts">
     <div class="card">
       <p class="kicker">In the mountains</p>
-      <h2>Nights in a yurt camp</h2>
-      <p>Felt walls, wide valleys and almost nothing between you and the sky.</p>
+      <h2>A bed in a yurt, instead of a tent</h2>
+      <p>I hitchhiked up into the mountains and asked a nomad family whether I could pitch my tent next to them,
+        because I was scared of wolves. Instead they offered me <strong>a bed in one of their yurts, for free</strong>.</p>
     </div>
   </section>
 
@@ -396,6 +496,20 @@
       <p class="kicker">Uzbekistan</p>
       <h2>The heart of the Silk Road</h2>
       <p><strong>Bukhara</strong>, the fortress city. <strong>Khiva</strong>, the old slave-trade city. <strong>Samarkand</strong>, capital of the Timurids.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="wedding">
+    <div class="card">
+      <p class="kicker">Samarkand</p>
+      <h2>Invited to an Uzbek wedding</h2>
+      <p>Walking through Samarkand, we saw crowds of people in suits outside and went up to ask what was happening.
+        Nobody spoke English, but within a minute we were taken upstairs and seated at a table.
+        From then on, <strong>we were part of the wedding</strong>: music late into the night, and the men dancing around a fire.</p>
+      <div class="clip">
+        <video src="media/wedding_fire.mp4" poster="media/wedding_fire.jpg" muted loop playsinline preload="none"></video>
+        <button type="button">Sound on</button>
+      </div>
     </div>
   </section>
 
@@ -499,13 +613,28 @@
         <li>Photos and short videos per chapter</li>
         <li>Safety: perception vs. reality per country</li>
       </ul>
+      <details class="credits">
+        <summary>Music credits</summary>
+        <p>All recordings from Wikimedia Commons, trimmed and levelled for this page. Adapted files are shared under the same licence.</p>
+        <ul>
+          <li><b>Korea:</b> <a href="https://commons.wikimedia.org/wiki/File:Traditional_gayageum_play.ogg">Traditional gayageum play</a>, Xia. <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.</li>
+          <li><b>China:</b> <a href="https://commons.wikimedia.org/wiki/File:%E4%BA%8C%E6%B3%89%E6%98%A0%E6%9C%88.ogg">Erquan Yingyue (The Moon Reflected in Erquan), composed by Abing</a>, erhu: Zhang Peijian, recorded by David290. <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.</li>
+          <li><b>Central Asia:</b> <a href="https://commons.wikimedia.org/wiki/File:Uzbek_music.ogg">Uzbek traditional folk music</a>, Teddyboum123. <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a>.</li>
+          <li><b>Russia:</b> <a href="https://commons.wikimedia.org/wiki/File:Tchaikovsky_the_Seasons_October.ogg">Tchaikovsky, The Seasons: October</a>, Bernd Krüger, piano-midi.de. <a href="https://creativecommons.org/licenses/by-sa/2.0/de/">CC BY-SA 2.0 DE</a>.</li>
+          <li><b>Caucasus:</b> <a href="https://commons.wikimedia.org/wiki/File:Duduk_Music.wav">Otar Amayi Champeqi Vra, Armenian folk song on duduk</a>, Ikuzusotnek. <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.</li>
+          <li><b>Turkey:</b> <a href="https://commons.wikimedia.org/wiki/File:Husseyni_Saz_Semayissi_.ogg">Hüseyni Saz Semaisi</a>, Hafız Kemal Bey (kemençe) and Hayriye Hanım (oud), Gallica. public domain.</li>
+          <li><b>Balkans:</b> <a href="https://commons.wikimedia.org/wiki/File:Oj_javore_i_kolo_-_Cicvarici.ogg">Oj javore i kolo (1904)</a>, Muzička družina Cicvarić. public domain.</li>
+          <li><b>Switzerland:</b> <a href="https://commons.wikimedia.org/wiki/File:Kilchbergsieger_Eugen_Hasler.ogg">Kilchbergsieger Eugen Hasler</a>, Mosibuebä (1991), Paul Lüönd. <a href="https://creativecommons.org/licenses/by-sa/2.5/">CC BY-SA 2.5</a>.</li>
+        </ul>
+      </details>
     </div>
   </section>
 
 </main>
 
-<script src="route.js"></script>
-<script src="story.js"></script>
-<script src="fonts.js"></script>
+<script src="route.js?v=2"></script>
+<script src="music.js?v=3"></script>
+<script src="story.js?v=3"></script>
+<script src="fonts.js?v=2"></script>
 </body>
 </html>

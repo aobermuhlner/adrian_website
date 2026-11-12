@@ -1,0 +1,4 @@
+# Raw source footage (300+ MB); compressed copies live in journey/media
+data/videos/
+# Excel lock files
+~$*

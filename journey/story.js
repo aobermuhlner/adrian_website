@@ -164,14 +164,18 @@ const STEPS = {
   geo:      { at: "seoul",     cam: [72, 40, 1.15],  overlay: "geo",    future: 0, plans: .5 },
   visa:     { at: "seoul",     cam: [76, 43, 1.25],   overlay: "visa",   future: 1, plans: .5 },
   depart:   { at: "dandong",   cam: [123, 38.8, 5],  overlay: null,     future: 1 },
-  china:    { at: "kashgar",   cam: [98, 38.5, 2.0], overlay: null,     future: 1 },
+  beijing:  { at: "beijing",   cam: [116.4, 40.2, 6], overlay: null,    future: 1, video: "great_wall" },
+  xian:     { at: "xian",      cam: [109, 35.5, 5],  overlay: null,     future: 1, video: "terracotta" },
+  china:    { at: "kashgar",   cam: [98, 38.5, 2.0], overlay: null,     future: 1, video: "train_platform" },
+  kashgar:  { at: "kashgar",   cam: [76, 39.5, 6],   overlay: null,     future: 1, video: "kashgar_street" },
   border1:  { at: "osh",       cam: [74.2, 40, 7],   overlay: null,     future: 1, pulse: "irkeshtam" },
   kyrgyz:   { at: "bishkek",   cam: [75.2, 42.3, 5], overlay: null,     future: 1 },
   karakol:  { at: "karakol",   cam: [78, 42.4, 7],   overlay: null,     future: 1, video: "karakol_horse" },
   yurts:    { at: "karakol",   cam: [77.2, 42.2, 5.5], overlay: null,   future: 1, video: "yurt_camp" },
   south:    { at: "bishkek2",  cam: [73.6, 42.2, 5], overlay: null,     future: 1, video: "truck_road" },
   tashkomur:{ at: "tashkomur", cam: [72.5, 41.4, 8], overlay: null,     future: 1, video: "tashkomur_river" },
-  uzbek:    { at: "tashkent2", cam: [65, 40.4, 4.5], overlay: null,     future: 1 },
+  uzbek:    { at: "samarkand", cam: [65, 40.4, 4.5], overlay: null,     future: 1 },
+  wedding:  { at: "samarkand", cam: [67, 39.7, 7],   overlay: null,     future: 1, video: "wedding_dance" },
   kazakh:   { at: "atyrau",    cam: [63, 44, 2.0],   overlay: null,     future: 1, pulse: "almaty" },
   russia:   { at: "lars",      cam: [47, 45.5, 3.6], overlay: null,     future: 1 },
   caucasus: { at: "batumi",    cam: [43.5, 41.8, 6], overlay: null,     future: 1 },
@@ -181,6 +185,16 @@ const STEPS = {
   budget:   { at: "zurich",    cam: [68, 43, 1.0],   overlay: "budget", future: 1 },
   finale:   { at: "zurich",    cam: [68, 43, 1.0],   overlay: null,     future: 1 },
   next:     { at: "zurich",    cam: [68, 43, 1.0],   overlay: null,     future: 1, full: 1 },
+};
+
+// Soundtrack style per step (see music.js): changes with the country on screen
+const MUSIC = {
+  intro: "korea", seoul: "korea", flight: "korea", routes: "korea", geo: "korea", visa: "korea", depart: "korea",
+  beijing: "china", xian: "china", china: "china", kashgar: "china", border1: "china",
+  kyrgyz: "central", karakol: "central", yurts: "central", south: "central", tashkomur: "central",
+  uzbek: "central", wedding: "central", kazakh: "central",
+  russia: "russia", caucasus: "caucasus", turkey: "turkey", balkans: "balkans",
+  home: "alpine", budget: "alpine", finale: "alpine", next: "alpine",
 };
 
 // Hours in transit per stretch, from the presentation slides
@@ -215,7 +229,7 @@ let hatch = null;       // diagonal pattern marking estimated values
 
 const isWide = () => innerWidth > 760;
 function mapArea() {    // the part of the screen not covered by story cards
-  if (isWide()) return { x0: Math.min(W * .06 + 450, W * .55), y0: 0, x1: W, y1: H };
+  if (isWide()) return { x0: Math.min(W * .06 + (innerHeight <= 760 ? 360 : 400), W * .5), y0: 0, x1: W, y1: H };  // match the card width set in CSS
   return { x0: 0, y0: 0, x1: W, y1: H * .62 };
 }
 
@@ -620,6 +634,12 @@ function onScroll() {
   if (b.overlay) w[b.overlay] += t;
 
   setVideos(a, b, t, i);
+  if (window.journeyMusic) {           // crossfade the soundtrack between the two countries' styles
+    const m = {}, sa = MUSIC[a.key], sb = MUSIC[b.key];
+    if (sa) m[sa] = (m[sa] || 0) + 1 - t;
+    if (sb) m[sb] = (m[sb] || 0) + t;
+    journeyMusic.setMix(m);
+  }
 
   const pos = pointAt(len);
   view = { k, tx: cx - k * x, ty: cy - k * y, len, w, p: pos.p,
@@ -649,10 +669,30 @@ function setVideos(a, b, t, i) {
   bgShade.style.opacity = Math.max(0, ...Object.values(w));
 }
 
+// Soundtrack on/off (music.js); it plays on its own once the browser allows sound
+const musicBtn = document.getElementById("music-btn");
+if (musicBtn && window.journeyMusic) musicBtn.addEventListener("click", () => {
+  const on = journeyMusic.toggle();
+  musicBtn.setAttribute("aria-pressed", on);
+  musicBtn.querySelector(".lbl").textContent = on ? "Music on" : "Music off";
+  onScroll();
+});
+
+// Duck the soundtrack while a clip with sound or a YouTube video is playing
+const loudClips = new Set();
+let ytActive = false;
+const updateDuck = () => window.journeyMusic && journeyMusic.setDuck(loudClips.size > 0 || ytActive);
+addEventListener("blur", () => setTimeout(() => {
+  ytActive = document.activeElement && document.activeElement.tagName === "IFRAME"; updateDuck();
+}));
+addEventListener("focus", () => { ytActive = false; updateDuck(); });
+
 // Small clips inside cards: play while on screen, muted until the viewer asks for sound
 document.querySelectorAll(".clip").forEach(clip => {
   const v = clip.querySelector("video"), btn = clip.querySelector("button");
-  btn.addEventListener("click", () => {
+  const loud = () => { if (!v.muted && !v.paused) loudClips.add(v); else loudClips.delete(v); updateDuck(); };
+  v.addEventListener("play", loud); v.addEventListener("pause", loud); v.addEventListener("volumechange", loud);
+  if (btn) btn.addEventListener("click", () => {
     v.muted = !v.muted;
     btn.textContent = v.muted ? "Sound on" : "Sound off";
     if (!v.muted && v.paused) v.play().catch(() => {});
@@ -813,7 +853,7 @@ for (const [step, codes] of Object.entries(CHAPTER_COUNTRIES)) {
 // ---------------------------------------------------------------------------
 addEventListener("scroll", onScroll, { passive: true });
 let resizeT;
-addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(setup, 150); });
+addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => worlds && setup(), 150); });   // the map may still be loading
 
 requestAnimationFrame(function loop(now) {
   if (dirty && view) { drawBase(); dirty = false; }
@@ -822,12 +862,25 @@ requestAnimationFrame(function loop(now) {
 });
 
 // Keep only what can ever be on screen (Europe, Africa's north, Asia): far less to rasterize per frame
+// Judged per polygon, not per country: France would otherwise drop out because of French Guiana
+// and Réunion, and its far-away parts are trimmed so they don't stretch the bounds.
 function eurasia(topo) {
-  const geoms = topo.objects.countries.geometries.filter(g => {
-    const [[x0, y0], [x1, y1]] = d3.geoBounds(topojson.feature(topo, g));
-    return y1 > 5 && (x1 > -30 || x0 > -30) && x0 < 180 && y0 > -10 || ISO_SET.has(g.id);
+  const inside = geo => {
+    const [[x0, y0], [x1, y1]] = d3.geoBounds(geo);
+    return y1 > 5 && (x1 > -30 || x0 > -30) && x0 < 180 && y0 > -10;
+  };
+  const geoms = [], features = [];
+  topo.objects.countries.geometries.forEach(g => {
+    const f = topojson.feature(topo, g);
+    if (ISO_SET.has(g.id)) { geoms.push(g); features.push(f); return; }
+    if (!f.geometry) return;
+    if (f.geometry.type === "MultiPolygon") {
+      const parts = f.geometry.coordinates.filter(c => inside({ type: "Polygon", coordinates: c }));
+      if (!parts.length) return;
+      geoms.push(g); features.push({ ...f, geometry: { type: "MultiPolygon", coordinates: parts } });
+    } else if (inside(f)) { geoms.push(g); features.push(f); }
   });
-  return { topo, geoms, features: geoms.map(g => topojson.feature(topo, g)) };
+  return { topo, geoms, features };
 }
 const ISO_SET = new Set(Object.values(ISO));
 const ATLAS = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/";
